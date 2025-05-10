@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC OPR Match Viewer</title>
+  <title>FTC Match OPR Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
@@ -12,26 +12,29 @@
       font-family: 'Inter', sans-serif;
       text-align: center;
       padding: 20px;
+      font-size: 18px;
     }
-    h1 { font-size: 28px; margin-bottom: 10px; }
-    .info { font-size: 16px; color: #bbb; margin-bottom: 20px; }
+    h1 { font-size: 32px; margin-bottom: 10px; }
+    .info { font-size: 18px; color: #bbb; margin-bottom: 20px; }
     input {
-      padding: 10px;
-      width: 200px;
+      padding: 12px;
+      width: 220px;
       background-color: #1e1e1e;
       border: 1px solid #444;
       color: white;
       border-radius: 5px;
       text-align: center;
       margin: 5px;
+      font-size: 16px;
     }
     button {
-      padding: 10px 15px;
+      padding: 12px 18px;
       background-color: #6200ee;
       border: none;
       color: white;
       border-radius: 5px;
       cursor: pointer;
+      font-size: 16px;
     }
     table {
       width: 100%;
@@ -41,12 +44,12 @@
       border-radius: 12px;
       overflow: hidden;
       table-layout: fixed;
+      font-size: 16px;
     }
     th, td {
-      padding: 8px;
+      padding: 10px;
       border: 1px solid #333;
       text-align: center;
-      font-size: 14px;
     }
     th {
       background-color: #292929;
@@ -95,35 +98,20 @@
       font-weight: bold;
     }
     .popup-container {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 10px;
-      z-index: 9999;
+      margin-top: 20px;
     }
     .popup {
-      background-color: #1e1e1e;
+      background-color: #2e2e2e;
       color: white;
-      padding: 10px 20px;
-      border: 1px solid #bb86fc;
+      padding: 15px 25px;
+      border: 1px solid #444;
       border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       min-width: 320px;
-    }
-    .popup button {
-      background-color: #bb86fc;
-      border: none;
-      border-radius: 5px;
-      color: black;
-      font-weight: bold;
-      padding: 5px 10px;
-      cursor: pointer;
+      font-size: 16px;
     }
     #footer {
       margin-top: 30px;
@@ -143,6 +131,8 @@
 
   <div id="loading"></div>
 
+  <div class="popup-container" id="popup-container"></div>
+
   <table id="matches">
     <colgroup>
       <col><col><col><col><col><col><col><col>
@@ -152,7 +142,7 @@
         <th>Match</th>
         <th colspan="2">Red Alliance</th>
         <th>Red OPR</th>
-        <th>Winner</th>
+        <th>Predicted Winner</th>
         <th>Blue OPR</th>
         <th colspan="2">Blue Alliance</th>
       </tr>
@@ -160,7 +150,8 @@
     <tbody></tbody>
   </table>
 
-  <div class="popup-container" id="popup-container"></div>
+  <div class="popup-container" id="summary-container"></div>
+
   <div id="footer">Powered by FTCScout API</div>
 
   <script>
@@ -173,9 +164,16 @@
       const container = document.getElementById("popup-container");
       const popup = document.createElement("div");
       popup.className = "popup";
-      popup.innerHTML = '<span>' + message + '</span><button onclick="this.parentElement.remove()">Dismiss</button>';
+      popup.innerHTML = '<span>' + message + '</span>';
       container.appendChild(popup);
-      if (container.children.length > 5) container.firstChild.remove();
+    }
+
+    function addSummary(message) {
+      const container = document.getElementById("summary-container");
+      const popup = document.createElement("div");
+      popup.className = "popup";
+      popup.innerHTML = '<span>' + message + '</span>';
+      container.appendChild(popup);
     }
 
     async function fetchJSON(url) {
@@ -219,9 +217,10 @@
       const tbody = document.querySelector("#matches tbody");
       tbody.innerHTML = "";
       document.getElementById("loading").textContent = "Loading...";
+      document.getElementById("summary-container").innerHTML = "";
 
       try {
-        const matches = await fetchJSON("https://api.ftcscout.org/rest/v1/events/2024/" + code + "/matches");
+        const matches = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}/matches`);
         if (!matches.length) {
           document.getElementById("loading").textContent = "";
           return addPopup("No matches found.");
@@ -247,20 +246,48 @@
           const row = document.createElement("tr");
           row.innerHTML = `
             <td>Q-${matchNumber}</td>
-            <td class="${highlightTeam === redTeams[0]?.teamNumber ? 'highlighted red-team' : 'red-team'} ${winner === 'Red' ? 'winner' : ''}">${redTeams[0]?.teamNumber ?? ''}</td>
-            <td class="${highlightTeam === redTeams[1]?.teamNumber ? 'highlighted red-team' : 'red-team'} ${winner === 'Red' ? 'winner' : ''}">${redTeams[1]?.teamNumber ?? ''}</td>
+            <td class="${highlightTeam === redTeams[0]?.teamNumber ? 'highlighted red-team' : 'red-team'} ${winner === 'Red' ? 'winner' : ''}">
+              ${redTeams[0]?.teamNumber}<br>${redData[0]?.name}
+            </td>
+            <td class="${highlightTeam === redTeams[1]?.teamNumber ? 'highlighted red-team' : 'red-team'} ${winner === 'Red' ? 'winner' : ''}">
+              ${redTeams[1]?.teamNumber}<br>${redData[1]?.name}
+            </td>
             <td class="red-score ${winner === 'Red' ? 'winner' : ''}">${redScore}</td>
             <td style="color: ${winner === 'Red' ? '#ff4d4d' : winner === 'Blue' ? '#4d94ff' : '#ccc'}">${winner}</td>
             <td class="blue-score ${winner === 'Blue' ? 'winner' : ''}">${blueScore}</td>
-            <td class="${highlightTeam === blueTeams[0]?.teamNumber ? 'highlighted blue-team' : 'blue-team'} ${winner === 'Blue' ? 'winner' : ''}">${blueTeams[0]?.teamNumber ?? ''}</td>
-            <td class="${highlightTeam === blueTeams[1]?.teamNumber ? 'highlighted blue-team' : 'blue-team'} ${winner === 'Blue' ? 'winner' : ''}">${blueTeams[1]?.teamNumber ?? ''}</td>
+            <td class="${highlightTeam === blueTeams[0]?.teamNumber ? 'highlighted blue-team' : 'blue-team'} ${winner === 'Blue' ? 'winner' : ''}">
+              ${blueTeams[0]?.teamNumber}<br>${blueData[0]?.name}
+            </td>
+            <td class="${highlightTeam === blueTeams[1]?.teamNumber ? 'highlighted blue-team' : 'blue-team'} ${winner === 'Blue' ? 'winner' : ''}">
+              ${blueTeams[1]?.teamNumber}<br>${blueData[1]?.name}
+            </td>
           `;
           tbody.appendChild(row);
         }
 
         if (!isNaN(highlightTeam) && matchResults[highlightTeam]) {
           const { wins, losses, ties, highScore } = matchResults[highlightTeam];
-          addPopup(`Team ${highlightTeam} is predicted to have a W-L-T of ${wins}-${losses}-${ties} and a high score of ${highScore} at this event.`);
+          addSummary(`Team ${highlightTeam} is predicted to have a W-L-T of ${wins}-${losses}-${ties} and a high score of ${highScore} at this event.`);
+        }
+
+        // Predicted 1st place
+        let sorted = Object.entries(matchResults).map(([team, stats]) => ({
+          teamNumber: parseInt(team),
+          ...stats,
+          opr: teamCache[team]?.opr || 0,
+          name: teamCache[team]?.name || "Unknown"
+        }));
+
+        sorted.sort((a, b) => {
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          if (a.losses !== b.losses) return a.losses - b.losses;
+          if (b.ties !== a.ties) return b.ties - a.ties;
+          return b.opr - a.opr;
+        });
+
+        const top = sorted[0];
+        if (top) {
+          addSummary(`Predicted 1st Place: ${top.teamNumber} - ${top.name} (Predicted W-L-T: ${top.wins}-${top.losses}-${top.ties}, Predicted High Score: ${top.highScore})`);
         }
 
         document.getElementById("loading").textContent = "";
