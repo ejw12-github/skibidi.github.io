@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FTC Event Match OPR Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root { font-family: 'Inter', sans-serif; }
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    h1 { font-size: 30px; margin-top: 20px; }
+    .input-container { margin: 20px 0; }
+    input::placeholder { text-align: center; }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+      border: 1px solid #333;
+      border-radius: 5px;
+      text-align: center;
+      font-family: 'Inter', sans-serif;
+    }
+    table {
+      width: 95%;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #333;
+      text-align: center;
+    }
+    th { background-color: #292929; }
+    tr:nth-child(even) { background-color: #1b1b1b; }
+    .red-team {
+      background-color: #4d1a1a;
+      color: white;
+    }
+    .blue-team {
+      background-color: #1a1a4d;
+      color: white;
+    }
+    .red-score {
+      color: #ff4d4d;
+      font-weight: bold;
+    }
+    .blue-score {
+      color: #4d94ff;
+      font-weight: bold;
+    }
+    .winner {
+      font-weight: bold;
+    }
+    #loading {
+      color: #bb86fc;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>FTC Event Match OPR Viewer</h1>
+
+  <div class="input-container">
+    <input type="text" id="eventCode" placeholder="Enter event code (e.g., MI-SALINE)" />
+    <button onclick="loadMatches()">Load Matches</button>
+  </div>
+
+  <div id="loading"></div>
+
+  <table id="matches">
+    <thead>
+      <tr>
+        <th>Match</th>
+        <th colspan="2">Red Alliance</th>
+        <th>Red Score</th>
+        <th>Winner</th>
+        <th>Blue Score</th>
+        <th colspan="2">Blue Alliance</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      return res.json();
+    }
+
+    async function getTeamInfo(teamNumber) {
+      try {
+        const [stats, info] = await Promise.all([
+          fetchJSON(\`https://api.ftcscout.org/rest/v1/teams/\${teamNumber}/quick-stats?season=2024\`),
+          fetchJSON(\`https://api.ftcscout.org/rest/v1/teams/\${teamNumber}\`)
+        ]);
+        return {
+          teamNumber,
+          name: info.name || "Unknown",
+          opr: stats.tot?.value !== undefined ? parseFloat(stats.tot.value.toFixed(2)) : 0
+        };
+      } catch {
+        return { teamNumber, name: "Unknown", opr: 0 };
+      }
+    }
+
+    async function loadMatches() {
+      const code = document.getElementById("eventCode").value.trim();
+      if (!code) return;
+
+      const tbody = document.querySelector("#matches tbody");
+      tbody.innerHTML = "";
+      document.getElementById("loading").textContent = "Loading matches...";
+
+      try {
+        const matches = await fetchJSON(\`https://api.ftcscout.org/rest/v1/events/2024/\${code}/matches\`);
+        for (const match of matches) {
+          const matchNumber = match.matchNumber;
+          const teams = match.teams || [];
+
+          const redTeams = teams.filter(t => t.station.toLowerCase().includes("red"));
+          const blueTeams = teams.filter(t => t.station.toLowerCase().includes("blue"));
+
+          const redTeamInfos = await Promise.all(redTeams.map(t => getTeamInfo(t.teamNumber)));
+          const blueTeamInfos = await Promise.all(blueTeams.map(t => getTeamInfo(t.teamNumber)));
+
+          const redScore = redTeamInfos.reduce((sum, t) => sum + t.opr, 0);
+          const blueScore = blueTeamInfos.reduce((sum, t) => sum + t.opr, 0);
+
+          const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
+
+          const row = document.createElement("tr");
+          row.innerHTML = \`
+            <td>Q-\${matchNumber}</td>
+            <td class="red-team">\${redTeamInfos[0] ? \`\${redTeamInfos[0].teamNumber} - \${redTeamInfos[0].name}\` : ""}</td>
+            <td class="red-team">\${redTeamInfos[1] ? \`\${redTeamInfos[1].teamNumber} - \${redTeamInfos[1].name}\` : ""}</td>
+            <td class="red-score">\${redScore.toFixed(2)}</td>
+            <td class="winner" style="color: \${winner === 'Red' ? '#ff4d4d' : winner === 'Blue' ? '#4d94ff' : '#e0e0e0'}">\${winner}</td>
+            <td class="blue-score">\${blueScore.toFixed(2)}</td>
+            <td class="blue-team">\${blueTeamInfos[0] ? \`\${blueTeamInfos[0].teamNumber} - \${blueTeamInfos[0].name}\` : ""}</td>
+            <td class="blue-team">\${blueTeamInfos[1] ? \`\${blueTeamInfos[1].teamNumber} - \${blueTeamInfos[1].name}\` : ""}</td>
+          \`;
+          tbody.appendChild(row);
+        }
+        document.getElementById("loading").textContent = "";
+      } catch (e) {
+        document.getElementById("loading").textContent = "Error loading matches.";
+      }
+    }
+  </script>
+</body>
+</html>
