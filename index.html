@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match OPR Viewer</title>
+  <title>FTC OPR Match Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     body {
@@ -73,6 +73,13 @@
       font-weight: bold;
     }
     .winner {
+      font-weight: bold;
+    }
+    .highlighted {
+      border: 2px solid yellow;
+      background-color: #333333 !important;
+    }
+    .bolded {
       font-weight: bold;
     }
     #loading {
@@ -197,7 +204,6 @@
         teamCache[teamNumber] = { name, opr };
         return { name, opr };
       } catch {
-        teamCache[teamNumber] = { name: "Unknown", opr: null };
         return { name: "Unknown", opr: null };
       }
     }
@@ -258,28 +264,30 @@
             else losses++;
           }
 
-          function formatTeam(team, data) {
+          function teamCell(team, data, alliance) {
             const star = data.opr == null ? "*" : "";
-            return `${team.teamNumber} - ${data.name}${star}`;
+            const isHighlighted = team.teamNumber === highlightTeam;
+            const isWinner = winner === alliance;
+            return `<td class="${alliance.toLowerCase()}-team ${isWinner ? 'bolded' : ''} ${isHighlighted ? 'highlighted' : ''}">${team.teamNumber} - ${data.name}${star}</td>`;
           }
 
           const row = document.createElement("tr");
           row.innerHTML = `
             <td>Q-${matchNumber}</td>
-            <td class="red-team">${formatTeam(redTeams[0], redData[0])}</td>
-            <td class="red-team">${formatTeam(redTeams[1], redData[1])}</td>
+            ${teamCell(redTeams[0], redData[0], "Red")}
+            ${teamCell(redTeams[1], redData[1], "Red")}
             <td class="red-score">${redScore}</td>
             <td class="winner" style="color: ${winner === "Red" ? "#ff4d4d" : winner === "Blue" ? "#4d94ff" : "#ccc"}">${winner}</td>
             <td class="blue-score">${blueScore}</td>
-            <td class="blue-team">${formatTeam(blueTeams[0], blueData[0])}</td>
-            <td class="blue-team">${formatTeam(blueTeams[1], blueData[1])}</td>
+            ${teamCell(blueTeams[0], blueData[0], "Blue")}
+            ${teamCell(blueTeams[1], blueData[1], "Blue")}
           `;
           tbody.appendChild(row);
         }
 
         if (missingOPRCount > 0) {
           document.getElementById("warning-box").style.display = "block";
-          document.getElementById("warning-box").textContent = `⚠️ ${missingOPRCount} team${missingOPRCount > 1 ? 's' : ''} in this event have no data (shown by *)`;
+          document.getElementById("warning-box").textContent = `⚠️ ${missingOPRCount} team${missingOPRCount > 1 ? 's' : ''} in this event have no OPR data (marked with *).`;
         }
 
         if (highlightTeam && (wins + losses + ties) > 0) {
