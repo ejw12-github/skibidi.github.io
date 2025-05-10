@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match OPR Viewer</title>
+  <title>FTC OPR Match Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     body {
@@ -23,16 +23,16 @@
     }
     input {
       padding: 10px;
-      width: 220px;
+      width: 200px;
       background-color: #1e1e1e;
       border: 1px solid #444;
       color: white;
       border-radius: 5px;
       text-align: center;
+      margin: 5px;
     }
     button {
       padding: 10px 15px;
-      margin-left: 5px;
       background-color: #6200ee;
       border: none;
       color: white;
@@ -52,18 +52,6 @@
       border: 1px solid #333;
       text-align: center;
     }
-    th:first-child {
-      border-top-left-radius: 10px;
-    }
-    th:last-child {
-      border-top-right-radius: 10px;
-    }
-    tr:last-child td:first-child {
-      border-bottom-left-radius: 10px;
-    }
-    tr:last-child td:last-child {
-      border-bottom-right-radius: 10px;
-    }
     th {
       background-color: #292929;
     }
@@ -78,6 +66,16 @@
       background-color: #00004d;
       color: white;
     }
+    .highlighted.red-team {
+      background-color: #ff9999 !important;
+      color: black !important;
+      font-weight: bold;
+    }
+    .highlighted.blue-team {
+      background-color: #99c2ff !important;
+      color: black !important;
+      font-weight: bold;
+    }
     .red-score {
       color: #ff4d4d;
       font-weight: bold;
@@ -89,29 +87,11 @@
     .winner {
       font-weight: bold;
     }
-
-    /* FTCScout-like highlight styles */
-    .highlighted.red-team {
-      background-color: #ff5c5c !important;
-      box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.4);
-      color: black !important;
-    }
-    .highlighted.blue-team {
-      background-color: #5c9dff !important;
-      box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.4);
-      color: black !important;
-    }
-
-    .bolded {
-      font-weight: bold;
-    }
-
     #loading {
       color: #bb86fc;
       margin-top: 10px;
       font-weight: bold;
     }
-
     .popup-container {
       position: fixed;
       top: 20px;
@@ -132,7 +112,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-width: 300px;
+      min-width: 320px;
     }
     .popup button {
       background-color: #bb86fc;
@@ -143,23 +123,6 @@
       padding: 5px 10px;
       cursor: pointer;
     }
-
-    .warning-box, .prediction-box {
-      max-width: 800px;
-      margin: 20px auto;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-size: 16px;
-    }
-    .warning-box {
-      background-color: #f1c40f;
-      color: #333;
-    }
-    .prediction-box {
-      background-color: #444;
-      color: white;
-    }
-
     #footer {
       margin-top: 30px;
       font-size: 14px;
@@ -168,17 +131,14 @@
   </style>
 </head>
 <body>
+
   <h1 id="event-title">FTC Match OPR Viewer</h1>
   <div class="info" id="event-info">Enter a valid FTCScout event code to get started.</div>
 
-  <div>
-    <input type="text" id="eventCode" placeholder="Enter event code" />
-    <input type="number" id="highlightTeam" placeholder="Highlight team #" style="width: 160px;" />
-    <button onclick="loadMatches()">Load Matches</button>
-  </div>
+  <input type="text" id="eventCode" placeholder="Enter event code" />
+  <input type="number" id="highlightTeam" placeholder="Highlight team #" />
+  <button onclick="loadMatches()">Load Matches</button>
 
-  <div id="warning-box" class="warning-box" style="display:none;"></div>
-  <div id="prediction-box" class="prediction-box" style="display:none;"></div>
   <div id="loading"></div>
 
   <table id="matches">
@@ -200,20 +160,20 @@
 
   <script>
     const teamCache = {};
-    let missingOPRCount = 0;
+    const matchResults = {};
 
     function addPopup(message) {
       const container = document.getElementById("popup-container");
       const popup = document.createElement("div");
       popup.className = "popup";
-      popup.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">Dismiss</button>`;
+      popup.innerHTML = \`<span>\${message}</span><button onclick="this.parentElement.remove()">Dismiss</button>\`;
       container.appendChild(popup);
       if (container.children.length > 5) container.firstChild.remove();
     }
 
     async function fetchJSON(url) {
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) throw new Error(\`Error \${res.status}\`);
       return res.json();
     }
 
@@ -221,16 +181,24 @@
       if (teamCache[teamNumber]) return teamCache[teamNumber];
       try {
         const [info, stats] = await Promise.all([
-          fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}`),
-          fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}/quick-stats?season=2024`)
+          fetchJSON(\`https://api.ftcscout.org/rest/v1/teams/\${teamNumber}\`),
+          fetchJSON(\`https://api.ftcscout.org/rest/v1/teams/\${teamNumber}/quick-stats?season=2024\`)
         ]);
         const name = info.name || "Unknown";
-        const opr = stats?.tot?.value ?? null;
+        const opr = stats?.tot?.value ?? 0;
         teamCache[teamNumber] = { name, opr };
         return { name, opr };
       } catch {
-        return { name: "Unknown", opr: null };
+        teamCache[teamNumber] = { name: "Unknown", opr: 0 };
+        return { name: "Unknown", opr: 0 };
       }
+    }
+
+    function trackTeamMatchResult(teamNumber, isWin, isTie) {
+      if (!matchResults[teamNumber]) matchResults[teamNumber] = { wins: 0, losses: 0, ties: 0, highScore: 0 };
+      if (isTie) matchResults[teamNumber].ties++;
+      else if (isWin) matchResults[teamNumber].wins++;
+      else matchResults[teamNumber].losses++;
     }
 
     async function loadMatches() {
@@ -240,46 +208,63 @@
 
       const tbody = document.querySelector("#matches tbody");
       tbody.innerHTML = "";
-      document.getElementById("loading").textContent = "Loading matches...";
+      document.getElementById("loading").textContent = "Loading...";
+
+      matchResults = {};
 
       try {
-        const matches = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/${code}/matches`);
-        const teams = new Set(matches.flatMap(m => [...m.red.teams, ...m.blue.teams]));
-        await Promise.all([...teams].map(t => getTeamData(t)));
+        const matches = await fetchJSON(\`https://api.ftcscout.org/rest/v1/events/2024/\${code}/matches\`);
+        if (!matches.length) {
+          document.getElementById("loading").textContent = "";
+          return addPopup("No matches found.");
+        }
 
         for (const match of matches) {
-          const row = document.createElement("tr");
-          const redOPR = match.red.teams.reduce((sum, t) => sum + (teamCache[t]?.opr ?? 0), 0);
-          const blueOPR = match.blue.teams.reduce((sum, t) => sum + (teamCache[t]?.opr ?? 0), 0);
-          const redClass = match.red.teams.includes(highlightTeam) ? "highlighted red-team" : "red-team";
-          const blueClass = match.blue.teams.includes(highlightTeam) ? "highlighted blue-team" : "blue-team";
-          const winner = redOPR === blueOPR ? "Tie" : redOPR > blueOPR ? "Red" : "Blue";
+          const matchNumber = match.id || match.matchNumber;
+          const teams = match.teams || [];
 
-          row.innerHTML = `
-            <td>${match.match}</td>
-            <td class="${redClass}">${match.red.teams[0]}</td>
-            <td class="${redClass}">${match.red.teams[1]}</td>
-            <td class="red-score ${winner === "Red" ? "winner" : ""}">${redOPR.toFixed(1)}</td>
-            <td>${winner}</td>
-            <td class="blue-score ${winner === "Blue" ? "winner" : ""}">${blueOPR.toFixed(1)}</td>
-            <td class="${blueClass}">${match.blue.teams[0]}</td>
-            <td class="${blueClass}">${match.blue.teams[1]}</td>
-          `;
+          const redTeams = teams.filter(t => t.alliance === "Red");
+          const blueTeams = teams.filter(t => t.alliance === "Blue");
+
+          const redData = await Promise.all(redTeams.map(t => getTeamData(t.teamNumber)));
+          const blueData = await Promise.all(blueTeams.map(t => getTeamData(t.teamNumber)));
+
+          const redScore = Math.round(redData.reduce((sum, t) => sum + t.opr, 0));
+          const blueScore = Math.round(blueData.reduce((sum, t) => sum + t.opr, 0));
+          const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
+
+          redTeams.forEach(t => trackTeamMatchResult(t.teamNumber, winner === "Red", winner === "Tie"));
+          blueTeams.forEach(t => trackTeamMatchResult(t.teamNumber, winner === "Blue", winner === "Tie"));
+
+          const row = document.createElement("tr");
+          row.innerHTML = \`
+            <td>Q-\${matchNumber}</td>
+            <td class="\${highlightTeam === redTeams[0].teamNumber ? 'highlighted red-team' : 'red-team'} \${winner === 'Red' ? 'winner' : ''}">\${redTeams[0]?.teamNumber ?? ''}</td>
+            <td class="\${highlightTeam === redTeams[1].teamNumber ? 'highlighted red-team' : 'red-team'} \${winner === 'Red' ? 'winner' : ''}">\${redTeams[1]?.teamNumber ?? ''}</td>
+            <td class="red-score \${winner === 'Red' ? 'winner' : ''}">\${redScore}</td>
+            <td style="color: \${winner === 'Red' ? '#ff4d4d' : winner === 'Blue' ? '#4d94ff' : '#ccc'}">\${winner}</td>
+            <td class="blue-score \${winner === 'Blue' ? 'winner' : ''}">\${blueScore}</td>
+            <td class="\${highlightTeam === blueTeams[0].teamNumber ? 'highlighted blue-team' : 'blue-team'} \${winner === 'Blue' ? 'winner' : ''}">\${blueTeams[0]?.teamNumber ?? ''}</td>
+            <td class="\${highlightTeam === blueTeams[1].teamNumber ? 'highlighted blue-team' : 'blue-team'} \${winner === 'Blue' ? 'winner' : ''}">\${blueTeams[1]?.teamNumber ?? ''}</td>
+          \`;
           tbody.appendChild(row);
         }
 
-        const stats = await fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${highlightTeam}/quick-stats?season=2024`);
-        const wins = stats.wins || 0;
-        const losses = stats.losses || 0;
-        const ties = stats.ties || 0;
-        const score = stats.max_score || 0;
-        addPopup(`Team ${highlightTeam} is predicted to have a W-L-T of ${wins}-${losses}-${ties} and a high score of ${score} at this event.`);
-      } catch (err) {
-        addPopup("Error loading data: " + err.message);
-      } finally {
+        if (!isNaN(highlightTeam) && matchResults[highlightTeam]) {
+          const { wins, losses, ties, highScore } = matchResults[highlightTeam];
+          const predictedScore = Math.max(wins + ties + losses ? highScore : 0);
+          addPopup(\`Team \${highlightTeam} is predicted to have a W-L-T of \${wins}-\${losses}-\${ties} and a high score of \${predictedScore} at this event.\`);
+        }
+
+        document.getElementById("loading").textContent = "";
+        addPopup("Matches loaded successfully.");
+      } catch (e) {
+        console.error(e);
+        addPopup("Error loading data. Please check the event code.");
         document.getElementById("loading").textContent = "";
       }
     }
   </script>
+
 </body>
 </html>
