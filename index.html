@@ -2,51 +2,66 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match OPR Viewer</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <title>FTC OPR Match Scouting</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
-    :root { font-family: 'Inter', sans-serif; }
     body {
       background-color: #121212;
       color: #e0e0e0;
-      margin: 0;
-      padding: 0;
+      font-family: 'Inter', sans-serif;
       text-align: center;
+      padding: 20px;
     }
-    h1 { font-size: 30px; margin-top: 20px; }
-    .input-container { margin: 20px 0; }
-    input::placeholder { text-align: center; }
-    input, button {
+    h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    .info {
+      font-size: 16px;
+      color: #bbb;
+      margin-bottom: 20px;
+    }
+    input {
       padding: 10px;
-      margin: 5px;
+      width: 220px;
       background-color: #1e1e1e;
-      color: #e0e0e0;
-      border: 1px solid #333;
+      border: 1px solid #444;
+      color: white;
       border-radius: 5px;
       text-align: center;
-      font-family: 'Inter', sans-serif;
+    }
+    button {
+      padding: 10px 15px;
+      margin-left: 5px;
+      background-color: #6200ee;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
     }
     table {
       width: 95%;
       margin: 20px auto;
       border-collapse: collapse;
       background-color: #1e1e1e;
-      border-radius: 10px;
-      overflow: hidden;
     }
     th, td {
       padding: 10px;
       border: 1px solid #333;
       text-align: center;
     }
-    th { background-color: #292929; }
-    tr:nth-child(even) { background-color: #1b1b1b; }
+    th {
+      background-color: #292929;
+    }
+    tr:nth-child(even) {
+      background-color: #1b1b1b;
+    }
     .red-team {
-      background-color: #4d1c1c;
+      background-color: #4d0000;
       color: white;
     }
     .blue-team {
-      background-color: #1c1c4d;
+      background-color: #00004d;
       color: white;
     }
     .red-score {
@@ -87,7 +102,6 @@
       justify-content: space-between;
       min-width: 300px;
     }
-    .popup span { flex: 1; text-align: center; }
     .popup button {
       background-color: #bb86fc;
       border: none;
@@ -106,13 +120,14 @@
 </head>
 <body>
 
-  <h1>FTC Match OPR Viewer</h1>
-  <div class="input-container">
-    <input type="text" id="eventCode" placeholder="Enter event code">
-    <button onclick="loadMatches()">Load Matches</button>
-  </div>
+  <h1 id="event-title">FTC Match OPR Viewer</h1>
+  <div class="info" id="event-info">Enter a valid FTCScout event code to get started.</div>
+
+  <input type="text" id="eventCode" placeholder="Enter event code" />
+  <button onclick="loadMatches()">Load Matches</button>
 
   <div id="loading"></div>
+
   <table id="matches">
     <thead>
       <tr>
@@ -131,11 +146,7 @@
   <div id="footer">Powered by FTCScout API</div>
 
   <script>
-    async function fetchJSON(url) {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      return res.json();
-    }
+    const teamCache = {};
 
     function addPopup(message) {
       const container = document.getElementById("popup-container");
@@ -146,61 +157,60 @@
       if (container.children.length > 5) container.firstChild.remove();
     }
 
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      return res.json();
+    }
+
+    async function getTeamData(teamNumber) {
+      if (teamCache[teamNumber]) return teamCache[teamNumber];
+      try {
+        const [info, stats] = await Promise.all([
+          fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}`),
+          fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}/quick-stats?season=2024`)
+        ]);
+        const name = info.name || "Unknown";
+        const opr = stats.tot?.value ?? 0;
+        teamCache[teamNumber] = { name, opr };
+        return { name, opr };
+      } catch {
+        teamCache[teamNumber] = { name: "Unknown", opr: 0 };
+        return { name: "Unknown", opr: 0 };
+      }
+    }
+
     async function loadMatches() {
-      const eventCode = document.getElementById("eventCode").value.trim();
-      const year = 2024;
-      const loading = document.getElementById("loading");
+      const code = document.getElementById("eventCode").value.trim();
+      if (!code) {
+        addPopup("Please enter an event code.");
+        return;
+      }
+
       const tbody = document.querySelector("#matches tbody");
       tbody.innerHTML = "";
-      loading.textContent = "Loading matches...";
+      document.getElementById("loading").textContent = "Loading...";
 
       try {
-        const matches = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/${year}/${eventCode}/matches`);
-        const teamCache = {};
+        const event = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}`);
+        document.getElementById("event-title").textContent = `${event.name} Match OPRs`;
+        document.getElementById("event-info").textContent = `${event.city ?? ''}${event.city ? ', ' : ''}${event.state ?? ''}${event.state ? ', ' : ''}${event.country ?? ''} • ${new Date(event.start).toLocaleDateString()} - ${new Date(event.end).toLocaleDateString()}`;
+
+        const matches = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}/matches`);
+        if (!matches.length) {
+          addPopup("No matches found.");
+          document.getElementById("loading").textContent = "";
+          return;
+        }
 
         for (const match of matches) {
           const matchNumber = match.matchNumber;
-          const teams = match.teams;
-          const redTeams = teams.filter(t => t.station.startsWith("RED"));
-          const blueTeams = teams.filter(t => t.station.startsWith("BLUE"));
+          const teams = match.teams || [];
+          const redTeams = teams.filter(t => t.station === "RED");
+          const blueTeams = teams.filter(t => t.station === "BLUE");
 
-          const redData = await Promise.all(redTeams.map(async team => {
-            const teamNumber = team.teamNumber;
-            if (!teamCache[teamNumber]) {
-              const [info, stats] = await Promise.all([
-                fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}`),
-                fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}/quick-stats?season=${year}`)
-              ]);
-              teamCache[teamNumber] = {
-                name: info.name ?? "Unknown",
-                opr: stats.tot?.value ?? 0
-              };
-            }
-            return {
-              teamNumber,
-              name: teamCache[teamNumber].name,
-              opr: teamCache[teamNumber].opr
-            };
-          }));
-
-          const blueData = await Promise.all(blueTeams.map(async team => {
-            const teamNumber = team.teamNumber;
-            if (!teamCache[teamNumber]) {
-              const [info, stats] = await Promise.all([
-                fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}`),
-                fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}/quick-stats?season=${year}`)
-              ]);
-              teamCache[teamNumber] = {
-                name: info.name ?? "Unknown",
-                opr: stats.tot?.value ?? 0
-              };
-            }
-            return {
-              teamNumber,
-              name: teamCache[teamNumber].name,
-              opr: teamCache[teamNumber].opr
-            };
-          }));
+          const redData = await Promise.all(redTeams.map(t => getTeamData(t.teamNumber)));
+          const blueData = await Promise.all(blueTeams.map(t => getTeamData(t.teamNumber)));
 
           const redScore = redData.reduce((sum, t) => sum + t.opr, 0);
           const blueScore = blueData.reduce((sum, t) => sum + t.opr, 0);
@@ -209,24 +219,26 @@
           const row = document.createElement("tr");
           row.innerHTML = `
             <td>Q-${matchNumber}</td>
-            <td class="red-team">#${redData[0].teamNumber} - ${redData[0].name}</td>
-            <td class="red-team">#${redData[1].teamNumber} - ${redData[1].name}</td>
+            <td class="red-team">${redTeams[0]?.teamNumber} - ${redData[0]?.name}</td>
+            <td class="red-team">${redTeams[1]?.teamNumber} - ${redData[1]?.name}</td>
             <td class="red-score">${redScore.toFixed(2)}</td>
-            <td class="winner" style="color: ${winner === 'Red' ? '#ff4d4d' : winner === 'Blue' ? '#4d94ff' : '#ccc'}">${winner}</td>
+            <td class="winner" style="color: ${winner === "Red" ? "#ff4d4d" : winner === "Blue" ? "#4d94ff" : "#ccc"}">${winner}</td>
             <td class="blue-score">${blueScore.toFixed(2)}</td>
-            <td class="blue-team">#${blueData[0].teamNumber} - ${blueData[0].name}</td>
-            <td class="blue-team">#${blueData[1].teamNumber} - ${blueData[1].name}</td>
+            <td class="blue-team">${blueTeams[0]?.teamNumber} - ${blueData[0]?.name}</td>
+            <td class="blue-team">${blueTeams[1]?.teamNumber} - ${blueData[1]?.name}</td>
           `;
           tbody.appendChild(row);
         }
 
-        loading.textContent = "";
-        addPopup(`Loaded ${matches.length} matches for event ${eventCode}`);
+        document.getElementById("loading").textContent = "";
+        addPopup("Matches loaded successfully!");
       } catch (e) {
-        loading.textContent = "";
-        addPopup("Error loading matches. Please check the event code and try again.");
+        console.error(e);
+        addPopup("Error loading data. Please check the event code.");
+        document.getElementById("loading").textContent = "";
       }
     }
   </script>
+
 </body>
 </html>
