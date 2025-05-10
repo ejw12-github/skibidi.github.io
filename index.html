@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC OPR Match Viewer</title>
+  <title>FTC Match OPR Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     body {
@@ -19,9 +19,6 @@
     .info {
       font-size: 16px;
       color: #bbb;
-      margin-bottom: 20px;
-    }
-    .input-container {
       margin-bottom: 20px;
     }
     input {
@@ -42,195 +39,262 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #3700b3;
+    table {
+      width: 95%;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background-color: #1e1e1e;
     }
-    .team-box {
-      background-color: #333;
+    th, td {
+      padding: 10px;
+      border: 1px solid #333;
+      text-align: center;
+    }
+    th {
+      background-color: #292929;
+    }
+    tr:nth-child(even) {
+      background-color: #1b1b1b;
+    }
+    .red-team {
+      background-color: #4d0000;
       color: white;
+    }
+    .blue-team {
+      background-color: #00004d;
+      color: white;
+    }
+    .red-score {
+      color: #ff4d4d;
+      font-weight: bold;
+    }
+    .blue-score {
+      color: #4d94ff;
+      font-weight: bold;
+    }
+    .winner {
+      font-weight: bold;
+    }
+    #loading {
+      color: #bb86fc;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .popup-container {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 9999;
+    }
+    .popup {
+      background-color: #1e1e1e;
+      color: white;
+      padding: 10px 20px;
+      border: 1px solid #bb86fc;
       border-radius: 10px;
-      padding: 15px;
-      margin: 10px 0;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-width: 300px;
+    }
+    .popup button {
+      background-color: #bb86fc;
+      border: none;
+      border-radius: 5px;
+      color: black;
+      font-weight: bold;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .warning-box, .prediction-box {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 16px;
     }
     .warning-box {
       background-color: #f1c40f;
       color: #333;
-      padding: 10px;
-      margin: 15px 0;
-      border-radius: 5px;
-      font-size: 16px;
     }
     .prediction-box {
-      background-color: #555;
+      background-color: #444;
       color: white;
-      border-radius: 10px;
-      padding: 15px;
-      margin: 20px 0;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     }
-    .rounded {
-      border-radius: 10px;
+    #footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #888;
     }
   </style>
 </head>
 <body>
-  <h1>Enter Event Code</h1>
-  <div class="info">Enter a valid FTC event code and select a team to view the predicted record</div>
-  
-  <!-- Input containers for Event code and Team selection -->
-  <div class="input-container">
-    <input id="event-code-input" type="text" placeholder="Enter event code" />
-    <button id="submit-event-code">Submit Event Code</button>
-  </div>
-  
-  <div class="input-container">
-    <input id="highlight-team-input" type="number" placeholder="Enter team number" />
-    <button id="submit-highlight-team">Highlight Team</button>
+
+  <h1 id="event-title">FTC Match OPR Viewer</h1>
+  <div class="info" id="event-info">Enter a valid FTCScout event code to get started.</div>
+
+  <div>
+    <input type="text" id="eventCode" placeholder="Enter event code" />
+    <input type="number" id="highlightTeam" placeholder="Highlight team #" style="width: 160px;" />
+    <button onclick="loadMatches()">Load Matches</button>
   </div>
 
-  <!-- Warning and prediction boxes -->
-  <div id="warning-box" class="warning-box" style="display: none;"></div>
-  <div id="prediction-box" class="prediction-box" style="display: none;"></div>
+  <div id="warning-box" class="warning-box" style="display:none;"></div>
+  <div id="prediction-box" class="prediction-box" style="display:none;"></div>
 
-  <!-- Matches will be displayed here -->
-  <div id="matches"></div>
+  <div id="loading"></div>
+
+  <table id="matches">
+    <thead>
+      <tr>
+        <th>Match</th>
+        <th colspan="2">Red Alliance</th>
+        <th>Red OPR</th>
+        <th>Winner</th>
+        <th>Blue OPR</th>
+        <th colspan="2">Blue Alliance</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="popup-container" id="popup-container"></div>
+  <div id="footer">Powered by FTCScout API</div>
 
   <script>
-    const eventCodeInput = document.getElementById("event-code-input");
-    const highlightTeamInput = document.getElementById("highlight-team-input");
-    const submitEventCodeButton = document.getElementById("submit-event-code");
-    const submitHighlightTeamButton = document.getElementById("submit-highlight-team");
-    const warningBox = document.getElementById("warning-box");
-    const predictionBox = document.getElementById("prediction-box");
-    const matchesContainer = document.getElementById("matches");
+    const teamCache = {};
+    let missingOPRCount = 0;
 
-    let eventCode = '';
-    let highlightedTeam = null;  // To store highlighted team
-    let teamsWithoutOPR = 0;
+    function addPopup(message) {
+      const container = document.getElementById("popup-container");
+      const popup = document.createElement("div");
+      popup.className = "popup";
+      popup.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">Dismiss</button>`;
+      container.appendChild(popup);
+      if (container.children.length > 5) container.firstChild.remove();
+    }
 
-    // Function to fetch teams' OPRs and data
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      return res.json();
+    }
+
     async function getTeamData(teamNumber) {
+      if (teamCache[teamNumber]) return teamCache[teamNumber];
       try {
-        const teamNameResponse = await fetch(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}`);
-        const teamNameData = await teamNameResponse.json();
-        const teamName = teamNameData.name;
-
-        const oprResponse = await fetch(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}/quick-stats?season=2024`);
-        const oprData = await oprResponse.json();
-        let opr = oprData.tot ? oprData.tot.value : null;
-
-        if (!opr) {
-          opr = "N/A";  // Mark as N/A if no OPR
-        } else {
-          opr = Math.round(opr); // Round OPR to the nearest whole number
-        }
-
-        return { teamName, opr };
-      } catch (error) {
-        console.error("Error fetching team data:", error);
-        return { teamName: "Unknown", opr: "N/A" };
+        const [info, stats] = await Promise.all([
+          fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}`),
+          fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}/quick-stats?season=2024`)
+        ]);
+        const name = info.name || "Unknown";
+        const opr = stats?.tot?.value ?? null;
+        teamCache[teamNumber] = { name, opr };
+        return { name, opr };
+      } catch {
+        teamCache[teamNumber] = { name: "Unknown", opr: null };
+        return { name: "Unknown", opr: null };
       }
     }
 
-    // Event listener for submitting event code
-    submitEventCodeButton.addEventListener("click", async () => {
-      eventCode = eventCodeInput.value.trim();
-      if (!eventCode) {
-        alert("Please enter an event code.");
-        return;
-      }
-      await loadMatches();
-    });
-
-    // Event listener for highlighting a team
-    submitHighlightTeamButton.addEventListener("click", () => {
-      const teamNumber = parseInt(highlightTeamInput.value.trim());
-      if (!teamNumber) {
-        alert("Please enter a valid team number.");
-        return;
-      }
-      highlightedTeam = { teamNumber };  // Store highlighted team
-      displayPredictionBox(); // Display prediction for this team
-    });
-
-    // Function to load matches for the event
     async function loadMatches() {
+      const code = document.getElementById("eventCode").value.trim();
+      const highlightTeam = parseInt(document.getElementById("highlightTeam").value.trim());
+      if (!code) return addPopup("Please enter an event code.");
+
+      const tbody = document.querySelector("#matches tbody");
+      tbody.innerHTML = "";
+      document.getElementById("loading").textContent = "Loading...";
+      document.getElementById("warning-box").style.display = "none";
+      document.getElementById("prediction-box").style.display = "none";
+      missingOPRCount = 0;
+
       try {
-        const matchesResponse = await fetch(`https://api.ftcscout.org/rest/v1/events/2024/${eventCode}/matches`);
-        const matchesData = await matchesResponse.json();
+        const event = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}`);
+        document.getElementById("event-title").textContent = `${event.name} Match OPRs`;
+        document.getElementById("event-info").textContent = `${event.city ?? ''}${event.city ? ', ' : ''}${event.state ?? ''}${event.state ? ', ' : ''}${event.country ?? ''} • ${new Date(event.start).toLocaleDateString()} - ${new Date(event.end).toLocaleDateString()}`;
 
-        teamsWithoutOPR = 0; // Reset counter for teams without OPR
-        matchesContainer.innerHTML = ''; // Clear previous matches
+        const matches = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}/matches`);
+        if (!matches.length) {
+          addPopup("No matches found.");
+          document.getElementById("loading").textContent = "";
+          return;
+        }
 
-        // Loop through each match and display the teams
-        for (const match of matchesData) {
-          const matchNumber = match.id;
-          const matchElement = document.createElement("div");
-          matchElement.classList.add("match");
+        let wins = 0, losses = 0, ties = 0;
 
-          const matchTitle = document.createElement("h3");
-          matchTitle.textContent = `Match ${matchNumber}`;
-          matchElement.appendChild(matchTitle);
+        for (const match of matches) {
+          const matchNumber = match.id || match.matchNumber;
+          const teams = match.teams || [];
 
-          const matchTable = document.createElement("table");
-          matchTable.classList.add("team-table");
-          const tableHeader = document.createElement("thead");
-          const headerRow = document.createElement("tr");
-          headerRow.innerHTML = "<th>Team</th><th>OPR</th>";
-          tableHeader.appendChild(headerRow);
-          matchTable.appendChild(tableHeader);
+          const redTeams = teams.filter(t => t.alliance === "Red");
+          const blueTeams = teams.filter(t => t.alliance === "Blue");
 
-          const tableBody = document.createElement("tbody");
+          const redData = await Promise.all(redTeams.map(t => getTeamData(t.teamNumber)));
+          const blueData = await Promise.all(blueTeams.map(t => getTeamData(t.teamNumber)));
 
-          for (const teamData of match.teams) {
-            const teamNumber = teamData.teamNumber;
-            const { teamName, opr } = await getTeamData(teamNumber);
+          const redScore = Math.round(redData.reduce((sum, t) => {
+            if (t.opr == null) missingOPRCount++;
+            return sum + (t.opr ?? 0);
+          }, 0));
 
-            // Increment counter if team has no OPR data
-            if (opr === "N/A") {
-              teamsWithoutOPR++;
-              teamName += " *";  // Add asterisk for teams with no OPR
-            }
+          const blueScore = Math.round(blueData.reduce((sum, t) => {
+            if (t.opr == null) missingOPRCount++;
+            return sum + (t.opr ?? 0);
+          }, 0));
 
-            const teamRow = document.createElement("tr");
-            const teamCell = document.createElement("td");
-            teamCell.textContent = teamName;
-            const oprCell = document.createElement("td");
-            oprCell.textContent = opr;
+          const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
 
-            teamRow.appendChild(teamCell);
-            teamRow.appendChild(oprCell);
-            tableBody.appendChild(teamRow);
+          const highlightInRed = redTeams.some(t => t.teamNumber === highlightTeam);
+          const highlightInBlue = blueTeams.some(t => t.teamNumber === highlightTeam);
+          if (highlightTeam && (highlightInRed || highlightInBlue)) {
+            if (winner === "Tie") ties++;
+            else if ((winner === "Red" && highlightInRed) || (winner === "Blue" && highlightInBlue)) wins++;
+            else losses++;
           }
 
-          matchTable.appendChild(tableBody);
-          matchElement.appendChild(matchTable);
-          matchesContainer.appendChild(matchElement);
+          function formatTeam(team, data) {
+            const star = data.opr == null ? "*" : "";
+            return `${team.teamNumber} - ${data.name}${star}`;
+          }
+
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>Q-${matchNumber}</td>
+            <td class="red-team">${formatTeam(redTeams[0], redData[0])}</td>
+            <td class="red-team">${formatTeam(redTeams[1], redData[1])}</td>
+            <td class="red-score">${redScore}</td>
+            <td class="winner" style="color: ${winner === "Red" ? "#ff4d4d" : winner === "Blue" ? "#4d94ff" : "#ccc"}">${winner}</td>
+            <td class="blue-score">${blueScore}</td>
+            <td class="blue-team">${formatTeam(blueTeams[0], blueData[0])}</td>
+            <td class="blue-team">${formatTeam(blueTeams[1], blueData[1])}</td>
+          `;
+          tbody.appendChild(row);
         }
 
-        // Update warning box for teams without OPR
-        if (teamsWithoutOPR > 0) {
-          warningBox.style.display = "block";
-          warningBox.textContent = `${teamsWithoutOPR} team${teamsWithoutOPR > 1 ? "s" : ""} in this event have no data (shown by *)`;
-        } else {
-          warningBox.style.display = "none";
+        if (missingOPRCount > 0) {
+          document.getElementById("warning-box").style.display = "block";
+          document.getElementById("warning-box").textContent = `⚠️ ${missingOPRCount} team${missingOPRCount > 1 ? 's' : ''} in this event have no data (shown by *)`;
         }
 
-      } catch (error) {
-        console.error("Error fetching matches:", error);
-        alert("There was an error fetching match data.");
+        if (highlightTeam && (wins + losses + ties) > 0) {
+          document.getElementById("prediction-box").style.display = "block";
+          document.getElementById("prediction-box").textContent = `Team ${highlightTeam} is predicted to have a W-L-T record of ${wins}-${losses}-${ties} at this event.`;
+        }
+
+        document.getElementById("loading").textContent = "";
+      } catch (e) {
+        console.error(e);
+        addPopup("Error loading data. Please check the event code.");
+        document.getElementById("loading").textContent = "";
       }
     }
-
-    // Function to display prediction box for highlighted team
-    function displayPredictionBox() {
-      if (!highlightedTeam) return;
-      predictionBox.style.display = "block";
-      predictionBox.innerHTML = `
-        Team ${highlightedTeam.teamNumber} is predicted to have a W-L-T record of 5-2-3 at this event.
-      `;
-    }
   </script>
+
 </body>
 </html>
