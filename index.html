@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match OPR Viewer</title>
+  <title>FTC OPR Match Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     body {
@@ -133,9 +133,9 @@
       <tr>
         <th>Match</th>
         <th colspan="2">Red Alliance</th>
-        <th>Red Score</th>
+        <th>Red OPR</th>
         <th>Winner</th>
-        <th>Blue Score</th>
+        <th>Blue OPR</th>
         <th colspan="2">Blue Alliance</th>
       </tr>
     </thead>
@@ -171,7 +171,7 @@
           fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}/quick-stats?season=2024`)
         ]);
         const name = info.name || "Unknown";
-        const opr = stats.tot?.value ?? 0;
+        const opr = stats?.tot?.value ?? 0;
         teamCache[teamNumber] = { name, opr };
         return { name, opr };
       } catch {
@@ -204,10 +204,11 @@
         }
 
         for (const match of matches) {
-          const matchNumber = match.matchNumber;
+          const matchNumber = match.id || match.matchNumber;
           const teams = match.teams || [];
-          const redTeams = teams.filter(t => t.station === "RED");
-          const blueTeams = teams.filter(t => t.station === "BLUE");
+
+          const redTeams = teams.filter(t => t.alliance === "Red");
+          const blueTeams = teams.filter(t => t.alliance === "Blue");
 
           const redData = await Promise.all(redTeams.map(t => getTeamData(t.teamNumber)));
           const blueData = await Promise.all(blueTeams.map(t => getTeamData(t.teamNumber)));
@@ -219,13 +220,13 @@
           const row = document.createElement("tr");
           row.innerHTML = `
             <td>Q-${matchNumber}</td>
-            <td class="red-team">${redTeams[0]?.teamNumber} - ${redData[0]?.name}</td>
-            <td class="red-team">${redTeams[1]?.teamNumber} - ${redData[1]?.name}</td>
+            <td class="red-team">${redTeams[0]?.teamNumber ?? ""} - ${redData[0]?.name ?? ""}</td>
+            <td class="red-team">${redTeams[1]?.teamNumber ?? ""} - ${redData[1]?.name ?? ""}</td>
             <td class="red-score">${redScore.toFixed(2)}</td>
             <td class="winner" style="color: ${winner === "Red" ? "#ff4d4d" : winner === "Blue" ? "#4d94ff" : "#ccc"}">${winner}</td>
             <td class="blue-score">${blueScore.toFixed(2)}</td>
-            <td class="blue-team">${blueTeams[0]?.teamNumber} - ${blueData[0]?.name}</td>
-            <td class="blue-team">${blueTeams[1]?.teamNumber} - ${blueData[1]?.name}</td>
+            <td class="blue-team">${blueTeams[0]?.teamNumber ?? ""} - ${blueData[0]?.name ?? ""}</td>
+            <td class="blue-team">${blueTeams[1]?.teamNumber ?? ""} - ${blueData[1]?.name ?? ""}</td>
           `;
           tbody.appendChild(row);
         }
