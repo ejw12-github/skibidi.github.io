@@ -1,90 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>FTC Event Scouting</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
-  <style>
-    :root { font-family: 'Inter', sans-serif; }
+<meta charset="UTF-8" />
+<title>FTC Event Scouting</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
+<style>
+:root { font-family: 'Inter', sans-serif; }
 
-    body { background-color: #121212; color: #e0e0e0; margin: 0; padding: 0; text-align: center; }
-    h1 { font-size: 30px; margin-top: 20px; }
-    table { width: 90%; margin: 20px auto; border-collapse: collapse; background-color: #1e1e1e; border-radius: 10px; overflow: hidden; }
-    th, td { padding: 10px; border: 1px solid #333; text-align: center; }
-    th { background-color: #292929; }
-    a { color: #9cd1ff; text-decoration: none; }
+body { background-color: #121212; color: #e0e0e0; margin: 0; padding: 0; text-align: center; }
+h1 { font-size: 36px; margin-top: 20px; }
+.info { margin: 5px 0 15px; font-size: 18px; color: #ccc; }
+.input-container { margin: 20px 0; }
+input, select, button { padding: 10px; margin: 5px; background-color: #1e1e1e; color: #e0e0e0; border: 1px solid #333; border-radius: 5px; text-align: center; font-family: 'Inter', sans-serif; font-size: 16px; }
+input::placeholder { text-align: center; }
+table { margin: 20px auto; border-collapse: collapse; background-color: #1e1e1e; border-radius: 10px; overflow: hidden; font-size: 17px; }
+th, td { padding: 12px; border: 1px solid #333; text-align: center; white-space: nowrap; }
+th { background-color: #292929; }
+tr:nth-child(even) { background-color: #1b1b1b; }
 
-    input::placeholder { text-align: center; }
+.highlight { background-color: #ff0040 !important; color: #fff !important; font-weight: bold; }
+.sorted { background-color: #2e004f !important; }
+a { color: #9cd1ff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+#loading { color: #bb86fc; margin-top: 10px; font-weight: bold; }
 
-    input, select, button { padding: 10px; margin: 5px; background-color: #1e1e1e; color: #e0e0e0; border: 1px solid #333; border-radius: 5px; text-align: center; font-family: 'Inter', sans-serif; }
+.popup-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 9999; }
+.popup { background-color: #1e1e1e; color: white; padding: 10px 20px; border: 1px solid #bb86fc; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; min-width: 300px; }
+.popup span { flex: 1; text-align: center; }
+.popup button { background-color: #bb86fc; border: none; border-radius: 5px; color: black; font-weight: bold; padding: 5px 10px; cursor: pointer; }
 
-    tr:nth-child(even) { background-color: #1b1b1b; }
-    a:hover { text-decoration: underline; }
+#footer { margin-top: 30px; font-size: 14px; color: #888; }
+.rank-green { color: #00e676; font-weight: bold; }
+.rank-yellow { color: #ffeb3b; font-weight: bold; }
+.rank-orange { color: #ff9800; font-weight: bold; }
 
-    .info { margin: 5px 0 15px; font-size: 16px; color: #ccc; }
-    .input-container { margin: 20px 0; }
-    .highlight { background-color: #2e004f !important; color: #bb86fc !important; font-weight: bold; }
-    .sorted { background-color: #2e004f !important; }
-    #loading { color: #bb86fc; margin-top: 10px; font-weight: bold; }
-    .popup-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 9999; }
-    .popup { background-color: #1e1e1e; color: white; padding: 10px 20px; border: 1px solid #bb86fc; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; min-width: 300px; }
-    .popup span { flex: 1; text-align: center; }
-    .popup button { background-color: #bb86fc; border: none; border-radius: 5px; color: black; font-weight: bold; padding: 5px 10px; cursor: pointer; }
-    #footer { margin-top: 30px; font-size: 14px; color: #888; }
-    .rank-green { color: #00e676; font-weight: bold; }
-    .rank-yellow { color: #ffeb3b; font-weight: bold; }
-    .rank-orange { color: #ff9800; font-weight: bold; }
-    .warning-box { background-color: #fff3cd; color: #856404; padding: 10px 15px; margin-top: 20px; border-radius: 8px; border: 1px solid #ffeeba; display: inline-block; font-weight: 600; }
-  </style>
+.warning-box { background-color: #fff3cd; color: #856404; padding: 10px 15px; margin-top: 20px; border-radius: 8px; border: 1px solid #ffeeba; display: inline-block; font-weight: 600; }
+
+#toggleModeBtn { position: absolute; top: 10px; left: 10px; padding: 10px 15px; font-size: 14px; border-radius: 5px; background-color: #333; color: #eee; border: 1px solid #555; cursor: pointer; z-index: 10; }
+</style>
 </head>
 <body>
-
-  <h1 id="event-title">FTC Event Scouting</h1>
-  <div class="info" id="event-info"></div>
-
-  <div class="input-container">
-    <input type="text" id="eventCode" placeholder="Enter event code">
-    <select id="year">
-      <option value="2024">2024 - Into the Deep</option>
-      <option value="2023">2023 - Centerstage</option>
-      <option value="2022">2022 - Power Play</option>
-      <option value="2021">2021 - Freight Frenzy</option>
-      <option value="2020">2020 - Ultimate Goal</option>
-      <option value="2019">2019 - Skystone</option>
-    </select>
-    <select id="sortBy" onchange="handleSortChange()">
-      <option value="tot">Total OPR</option>
-      <option value="auto">Auto OPR</option>
-      <option value="dc">Teleop OPR</option>
-      <option value="eg">Endgame OPR</option>
-    </select>
-    <input type="number" id="highlightTeam" placeholder="Team # to highlight" />
-    <button onclick="loadData()">Load Rankings</button>
-  </div>
-
-  <div id="no-data-warning"></div>
-  <div id="loading"></div>
-
-  <table id="rankings">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Team</th>
-        <th>Location</th>
-        <th id="totHeader">Total</th>
-        <th id="autoHeader">Auto</th>
-        <th id="dcHeader">Teleop</th>
-        <th id="egHeader">Endgame</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <div class="info" id="total-teams"></div>
-  <div class="popup-container" id="popup-container"></div>
-  <div id="footer">Powered by FTCScout API</div>
+<button id="toggleModeBtn" onclick="toggleMode()">Switch to Match Scouting</button>
+<h1 id="event-title">FTC Event Scouting</h1>
+<div class="info" id="event-info"></div>
+<div class="input-container">
+<input type="text" id="eventCode" placeholder="Enter event code">
+<select id="year">
+<option value="2024">2024 - Into the Deep</option>
+<option value="2023">2023 - Centerstage</option>
+<option value="2022">2022 - Power Play</option>
+<option value="2021">2021 - Freight Frenzy</option>
+<option value="2020">2020 - Ultimate Goal</option>
+<option value="2019">2019 - Skystone</option>
+</select>
+<select id="sortBy" onchange="handleSortChange()">
+<option value="tot">Total OPR</option>
+<option value="auto">Auto OPR</option>
+<option value="dc">Teleop OPR</option>
+<option value="eg">Endgame OPR</option>
+</select>
+<input type="number" id="highlightTeam" placeholder="Team # to highlight" />
+<button onclick="loadData()">Load Rankings</button>
+</div>
+<div id="no-data-warning"></div>
+<div id="loading"></div>
+<table id="rankings">
+<thead>
+<tr>
+<th>#</th>
+<th>Team</th>
+<th>Location</th>
+<th id="totHeader">Total</th>
+<th id="autoHeader">Auto</th>
+<th id="dcHeader">Teleop</th>
+<th id="egHeader">Endgame</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<div class="info" id="total-teams"></div>
+<div class="popup-container" id="popup-container"></div>
+<div id="footer">Powered by FTCScout API</div>
 <script>
-document.addEventListener("DOMContentLoaded",function(){document.querySelectorAll("th").forEach(th=>{th.style.cursor="pointer"});let table=document.getElementById("rankings"),thElements=table.querySelectorAll("th"),sortDirection=Array(thElements.length).fill(true);thElements.forEach((th,i)=>{th.addEventListener("click",()=>{let rows=Array.from(table.querySelectorAll("tbody tr")),isNumeric=th.textContent==="Total"||th.textContent==="Auto"||th.textContent==="Teleop"||th.textContent==="Endgame",sortFn=isNumeric?(a,b)=>{let aText=a.children[i].textContent,bText=b.children[i].textContent,aVal=parseFloat(aText),bVal=parseFloat(bText);if(isNaN(aVal))aVal=-Infinity;if(isNaN(bVal))bVal=-Infinity;return sortDirection[i]?bVal-aVal:aVal-bVal}:(a,b)=>{let aText=a.children[i].textContent.toLowerCase(),bText=b.children[i].textContent.toLowerCase();return sortDirection[i]?aText.localeCompare(bText):bText.localeCompare(aText)};rows.sort(sortFn);let tbody=table.querySelector("tbody");rows.forEach(row=>tbody.appendChild(row));sortDirection[i]=!sortDirection[i]})})});
+let cachedData = []
+let lastEventCode = ''
+let lastYear = ''
+let abortController = null
+let isMatchMode = false
+
+function toggleMode() {
+  isMatchMode = !isMatchMode
+  document.getElementById("event-title").textContent = isMatchMode ? "FTC Match Scouting" : "FTC Event Scouting"
+  document.getElementById("toggleModeBtn").textContent = isMatchMode ? "Switch to Event Scouting" : "Switch to Match Scouting"
+  document.getElementById("rankings").style.display = isMatchMode ? "none" : ""
+  document.getElementById("event-info").style.display = isMatchMode ? "none" : ""
+  document.getElementById("total-teams").style.display = isMatchMode ? "none" : ""
+  document.getElementById("sortBy").disabled = isMatchMode
+}
+
+function addPopup(message) {
+  const container = document.getElementById("popup-container")
+  const popup = document.createElement("div")
+  popup.className = "popup"
+  popup.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">Dismiss</button>`
+  container.appendChild(popup)
+  if (container.children.length > 5) container.firstChild.remove()
+}
+
+function ordinal(n) {
+  const s = ["th","st","nd","rd"],v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+function renderOPRCell(opr, key, sortBy) {
+  if (!opr.rank) return `<td class="${key === sortBy ? 'sorted' : ''}">No Data</td>`
+  let cls = ''
+  if (opr.rank < 100) cls = 'rank-green'
+  else if (opr.rank < 250) cls = 'rank-yellow'
+  else if (opr.rank < 500) cls = 'rank-orange'
+  return `<td class="${key === sortBy ? 'sorted' : ''} ${cls}">${opr.display}</td>`
+}
+
+function clearHeaderHighlights() {
+  document.querySelectorAll("th").forEach(th => th.classList.remove("highlight"))
+}
+
+function handleSortChange() {
+  const sortBy = document.getElementById("sortBy").value
+  const highlightTeam = parseInt(document.getElementById("highlightTeam").value.trim()) || null
+  clearHeaderHighlights()
+  document.getElementById(`${sortBy}Header`).classList.add("highlight")
+  renderLiveTable(sortBy, highlightTeam)
+}
+
+async function fetchJSON(url, signal) {
+  const res = await fetch(url, { signal })
+  if (!res.ok) throw new Error(`Error ${res.status}`)
+  return res.json()
+}
+
+async function loadData() {
+  if (isMatchMode) {
+    addPopup("Match scouting mode is currently a placeholder.")
+    return
+  }
+
+  const code = document.getElementById("eventCode").value.trim()
+  const year = document.getElementById("year").value
+  const sortBy = document.getElementById("sortBy").value
+  const highlightTeam = parseInt(document.getElementById("highlightTeam").value.trim()) || null
+
+  if (code === lastEventCode && year === lastYear) {
+    handleSortChange()
+    return
+  }
+
+  const tbody = document.querySelector("#rankings tbody")
+  tbody.innerHTML = ""
+  cachedData = []
+  lastEventCode = code
+  lastYear = year
+  clearHeaderHighlights()
+  document.getElementById(`${sortBy}Header`).classList.add("highlight")
+
+  if (abortController) abortController.abort()
+  abortController = new AbortController()
+  const { signal } = abortController
+
+  document.getElementById("loading").textContent = "Loading event..."
+  document.getElementById("no-data-warning").innerHTML = ""
+  document.getElementById("total-teams").textContent = ""
+
+  try {
+    const event = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/${year}/${code}`, signal)
+    document.getElementById("event-title").textContent = `${event.name} OPR Rankings`
+    const start = new Date(event.start).toLocaleDateString()
+    const end = new Date(event.end).toLocaleDateString()
+    const location = event.city || event.state ? `${event.city ?? ''}, ${event.state ?? ''}, ${event.country}` : event.country
+    document.getElementById("event-info").textContent = `${location} • ${start} - ${end}`
+
+    const teams = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/${year}/${code}/teams`, signal)
+
+    for (let i = 0; i < teams.length; i++) {
+      const teamNumber = teams[i].teamNumber
+      let name = "Unknown", location = "Unknown"
+      try {
+        const info = await fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}`, signal)
+        name = info.name ?? "Unknown"
+        location = info.city || info.state ? `${info.city ?? ''}, ${info.state ?? ''}, ${info.country}` : info.country
+      } catch {}
+
+      let stats = {}
+      try {
+        stats = await fetchJSON(`https://api.ftcscout.org/rest/v1/teams/${teamNumber}/quick-stats?season=${year}`, signal)
+      } catch {}
+
+      const values = ['tot','auto','dc','eg'].reduce((acc, key) => {
+        const val = stats[key]?.value
+        const rank = stats[key]?.rank
+        acc[key] = val !== undefined && rank !== undefined ? { value: val, rank, display: `${val.toFixed(2)} (${ordinal(rank)})` } : { display: "No Data" }
+        return acc
+      }, {})
+
+      cachedData.push({ teamNumber, name, location, values })
+      const percent = Math.round(((i + 1) / teams.length) * 100)
+      document.getElementById("loading").textContent = `Processing team ${i + 1} / ${teams.length} (${percent}%)`
+      renderLiveTable(sortBy, highlightTeam)
+    }
+
+    document.getElementById("loading").textContent = ""
+    addPopup(`Finished scouting ${event.name}`)
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      document.getElementById("loading").textContent = ""
+      addPopup("Event not found or error occurred.")
+    }
+  }
+}
+
+function renderLiveTable(sortBy, highlightTeam) {
+  const tbody = document.querySelector("#rankings tbody")
+  tbody.innerHTML = ""
+  const sorted = [...cachedData].sort((a, b) => (b.values[sortBy]?.value ?? -Infinity) - (a.values[sortBy]?.value ?? -Infinity))
+  let highlightEntry = null
+
+  sorted.forEach((team, idx) => {
+    const row = document.createElement("tr")
+    if (team.teamNumber === highlightTeam) {
+      row.classList.add("highlight")
+      highlightEntry = { ...team, rank: ordinal(idx + 1) }
+    }
+    row.innerHTML = `
+      <td>${ordinal(idx + 1)}</td>
+      <td><a href="https://ftcscout.org/teams/${team.teamNumber}" target="_blank">#${team.teamNumber} - ${team.name}</a></td>
+      <td>${team.location}</td>
+      ${renderOPRCell(team.values.tot, 'tot', sortBy)}
+      ${renderOPRCell(team.values.auto, 'auto', sortBy)}
+      ${renderOPRCell(team.values.dc, 'dc', sortBy)}
+      ${renderOPRCell(team.values.eg, 'eg', sortBy)}
+    `
+    tbody.appendChild(row)
+  })
+
+  if (highlightEntry) {
+    const topRow = document.createElement("tr")
+    topRow.classList.add("highlight")
+    topRow.innerHTML = `
+      <td>${highlightEntry.rank}</td>
+      <td><a href="https://ftcscout.org/teams/${highlightEntry.teamNumber}" target="_blank">#${highlightEntry.teamNumber} - ${highlightEntry.name}</a></td>
+      <td>${highlightEntry.location}</td>
+      ${renderOPRCell(highlightEntry.values.tot, 'tot', sortBy)}
+      ${renderOPRCell(highlightEntry.values.auto, 'auto', sortBy)}
+      ${renderOPRCell(highlightEntry.values.dc, 'dc', sortBy)}
+      ${renderOPRCell(highlightEntry.values.eg, 'eg', sortBy)}
+    `
+    tbody.insertBefore(topRow, tbody.firstChild)
+  }
+
+  const noDataCount = cachedData.filter(team => team.values.tot.display === "No Data").length
+  const warningBox = document.getElementById("no-data-warning")
+  warningBox.innerHTML = noDataCount > 0 ? `<div class="warning-box">⚠️ Warning: ${noDataCount} team${noDataCount > 1 ? "s" : ""} in this event ${noDataCount > 1 ? "have" : "has"} no data this season!</div>` : ""
+  document.getElementById("total-teams").textContent = `Total Teams: ${cachedData.length}`
+}
 </script>
 </body>
 </html>
