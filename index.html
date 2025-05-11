@@ -2,322 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC OPR Match Viewer</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <title>FTC Event Scouting</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
   <style>
-    * { box-sizing: border-box; }
-    body {
-      background-color: #121212;
-      color: #e0e0e0;
-      font-family: 'Inter', sans-serif;
-      text-align: center;
-      padding: 20px;
-    }
-    h1 { font-size: 36px; margin-bottom: 10px; }
-    .info { font-size: 16px; color: #bbb; margin-bottom: 20px; }
+    :root { font-family: 'Inter', sans-serif; }
 
-    input {
-      padding: 12px;
-      width: 220px;
-      background-color: #1e1e1e;
-      border: 1px solid #444;
-      color: white;
-      border-radius: 8px;
-      text-align: center;
-      margin: 5px;
-      font-size: 16px;
-    }
+    body { background-color: #121212; color: #e0e0e0; margin: 0; padding: 0; text-align: center; }
+    h1 { font-size: 30px; margin-top: 20px; }
+    table { width: 90%; margin: 20px auto; border-collapse: collapse; background-color: #1e1e1e; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 10px; border: 1px solid #333; text-align: center; }
+    th { background-color: #292929; }
+    a { color: #9cd1ff; text-decoration: none; }
 
-    button {
-      padding: 12px 18px;
-      background-color: #6200ee;
-      border: none;
-      color: white;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-    }
+    input::placeholder { text-align: center; }
 
-    .summary-box {
-      background-color: #2b2b2b;
-      padding: 12px 20px;
-      border-radius: 10px;
-      margin: 15px auto;
-      width: fit-content;
-      font-size: 16px;
-      color: #ddd;
-    }
+    input, select, button { padding: 10px; margin: 5px; background-color: #1e1e1e; color: #e0e0e0; border: 1px solid #333; border-radius: 5px; text-align: center; font-family: 'Inter', sans-serif; }
 
-    table {
-      margin: 30px auto;
-      border-collapse: collapse;
-      background-color: #1e1e1e;
-      border-radius: 12px;
-      overflow: hidden;
-      font-size: 18px;
-      min-width: 80%;
-    }
+    tr:nth-child(even) { background-color: #1b1b1b; }
+    a:hover { text-decoration: underline; }
 
-    th, td {
-      padding: 10px;
-      border: 1px solid #333;
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    th {
-      background-color: #292929;
-      font-weight: 600;
-    }
-
-    .red-team {
-      background-color: #4d0000;
-      color: white;
-    }
-    .blue-team {
-      background-color: #00004d;
-      color: white;
-    }
-
-    .highlighted.red-team {
-      background-color: #ff3333 !important;
-      color: white !important;
-      font-weight: bold;
-    }
-
-    .highlighted.blue-team {
-      background-color: #3385ff !important;
-      color: white !important;
-      font-weight: bold;
-    }
-
-    .red-score {
-      color: #ff4d4d;
-      font-weight: bold;
-    }
-    .blue-score {
-      color: #4d94ff;
-      font-weight: bold;
-    }
-
-    .winner {
-      font-weight: bold;
-    }
-
-    #loading {
-      color: #bb86fc;
-      margin-top: 10px;
-      font-weight: bold;
-    }
-
-    .popup-container {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      z-index: 9999;
-    }
-
-    .popup {
-      background-color: #1e1e1e;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      min-width: 320px;
-    }
-
-    .popup button {
-      background-color: #bb86fc;
-      border: none;
-      border-radius: 5px;
-      color: black;
-      font-weight: bold;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-
-    #footer {
-      margin-top: 30px;
-      font-size: 14px;
-      color: #888;
-    }
+    .info { margin: 5px 0 15px; font-size: 16px; color: #ccc; }
+    .input-container { margin: 20px 0; }
+    .highlight { background-color: #2e004f !important; color: #bb86fc !important; font-weight: bold; }
+    .sorted { background-color: #2e004f !important; }
+    #loading { color: #bb86fc; margin-top: 10px; font-weight: bold; }
+    .popup-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 9999; }
+    .popup { background-color: #1e1e1e; color: white; padding: 10px 20px; border: 1px solid #bb86fc; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; min-width: 300px; }
+    .popup span { flex: 1; text-align: center; }
+    .popup button { background-color: #bb86fc; border: none; border-radius: 5px; color: black; font-weight: bold; padding: 5px 10px; cursor: pointer; }
+    #footer { margin-top: 30px; font-size: 14px; color: #888; }
+    .rank-green { color: #00e676; font-weight: bold; }
+    .rank-yellow { color: #ffeb3b; font-weight: bold; }
+    .rank-orange { color: #ff9800; font-weight: bold; }
+    .warning-box { background-color: #fff3cd; color: #856404; padding: 10px 15px; margin-top: 20px; border-radius: 8px; border: 1px solid #ffeeba; display: inline-block; font-weight: 600; }
   </style>
 </head>
 <body>
 
-  <h1 id="event-title">FTC Match OPR Viewer</h1>
-  <div class="info" id="event-info">Enter a valid FTCScout event code to get started.</div>
+  <h1 id="event-title">FTC Event Scouting</h1>
+  <div class="info" id="event-info"></div>
 
-  <input type="text" id="eventCode" placeholder="Enter event code" />
-  <input type="number" id="highlightTeam" placeholder="Highlight team #" />
-  <button id="loadButton">Load Matches</button>
+  <div class="input-container">
+    <input type="text" id="eventCode" placeholder="Enter event code">
+    <select id="year">
+      <option value="2024">2024 - Into the Deep</option>
+      <option value="2023">2023 - Centerstage</option>
+      <option value="2022">2022 - Power Play</option>
+      <option value="2021">2021 - Freight Frenzy</option>
+      <option value="2020">2020 - Ultimate Goal</option>
+      <option value="2019">2019 - Skystone</option>
+    </select>
+    <select id="sortBy" onchange="handleSortChange()">
+      <option value="tot">Total OPR</option>
+      <option value="auto">Auto OPR</option>
+      <option value="dc">Teleop OPR</option>
+      <option value="eg">Endgame OPR</option>
+    </select>
+    <input type="number" id="highlightTeam" placeholder="Team # to highlight" />
+    <button onclick="loadData()">Load Rankings</button>
+  </div>
 
-  <div id="summary-container"></div>
+  <div id="no-data-warning"></div>
   <div id="loading"></div>
 
-  <table id="matches">
+  <table id="rankings">
     <thead>
       <tr>
-        <th>Match</th>
-        <th colspan="2">Red</th>
-        <th>R</th>
-        <th>W</th>
-        <th>B</th>
-        <th colspan="2">Blue</th>
+        <th>#</th>
+        <th>Team</th>
+        <th>Location</th>
+        <th id="totHeader">Total</th>
+        <th id="autoHeader">Auto</th>
+        <th id="dcHeader">Teleop</th>
+        <th id="egHeader">Endgame</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
+  <div class="info" id="total-teams"></div>
   <div class="popup-container" id="popup-container"></div>
   <div id="footer">Powered by FTCScout API</div>
 <script>
-  const getMatchLabel = (matchNumber) => {
-    if (matchNumber < 20000) return `Q-${matchNumber}`;
-    const series = Math.floor(matchNumber / 10000);
-    const match = matchNumber % 10000;
-    return `M-${series}${match === 1 ? '' : '.' + (match - 1)}`;
-  };
-
-  const getOrdinal = (n) => {
-    const s = ["th", "st", "nd", "rd"];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-  };
-
-  document.getElementById("loadButton").addEventListener("click", async () => {
-    const eventCode = document.getElementById("eventCode").value.trim();
-    const highlightTeam = parseInt(document.getElementById("highlightTeam").value);
-    const loading = document.getElementById("loading");
-    loading.textContent = "Loading...";
-
-    try {
-      const matchesRes = await fetch(`https://api.ftcscout.org/v1/event/${eventCode}/matches`);
-      const teamsRes = await fetch(`https://api.ftcscout.org/v1/event/${eventCode}/teams`);
-      const eventRes = await fetch(`https://api.ftcscout.org/v1/event/${eventCode}`);
-
-      const matches = await matchesRes.json();
-      const teams = await teamsRes.json();
-      const event = await eventRes.json();
-
-      document.getElementById("event-title").textContent = event.fullName;
-      document.getElementById("event-info").textContent = `${event.city}, ${event.stateProv}, ${event.country} — ${event.startDate}`;
-
-      const teamMap = {};
-      teams.forEach(t => {
-        teamMap[t.teamNumber] = t;
-        t.predictedWins = 0;
-        t.predictedLosses = 0;
-        t.predictedTies = 0;
-      });
-
-      matches.sort((a, b) => a.matchNumber - b.matchNumber);
-
-      const tbody = document.querySelector("#matches tbody");
-      tbody.innerHTML = "";
-
-      matches.forEach(match => {
-        const red = match.red;
-        const blue = match.blue;
-        const redOPR = red.opr ?? 0;
-        const blueOPR = blue.opr ?? 0;
-
-        const winner = redOPR > blueOPR ? "Red" : blueOPR > redOPR ? "Blue" : "Tie";
-
-        const row = document.createElement("tr");
-
-        const matchCell = document.createElement("td");
-        matchCell.textContent = getMatchLabel(match.matchNumber);
-        row.appendChild(matchCell);
-
-        [red.team1, red.team2].forEach(tn => {
-          const cell = document.createElement("td");
-          cell.textContent = tn;
-          cell.classList.add("red-team");
-          if (tn === highlightTeam) cell.classList.add("highlighted");
-          row.appendChild(cell);
-        });
-
-        const redScoreCell = document.createElement("td");
-        redScoreCell.textContent = redOPR.toFixed(1);
-        redScoreCell.className = "red-score";
-        row.appendChild(redScoreCell);
-
-        const winnerCell = document.createElement("td");
-        winnerCell.textContent = winner;
-        winnerCell.className = "winner";
-        row.appendChild(winnerCell);
-
-        const blueScoreCell = document.createElement("td");
-        blueScoreCell.textContent = blueOPR.toFixed(1);
-        blueScoreCell.className = "blue-score";
-        row.appendChild(blueScoreCell);
-
-        [blue.team1, blue.team2].forEach(tn => {
-          const cell = document.createElement("td");
-          cell.textContent = tn;
-          cell.classList.add("blue-team");
-          if (tn === highlightTeam) cell.classList.add("highlighted");
-          row.appendChild(cell);
-        });
-
-        tbody.appendChild(row);
-
-        [red.team1, red.team2].forEach(tn => {
-          if (winner === "Red") teamMap[tn].predictedWins++;
-          else if (winner === "Blue") teamMap[tn].predictedLosses++;
-          else teamMap[tn].predictedTies++;
-        });
-
-        [blue.team1, blue.team2].forEach(tn => {
-          if (winner === "Blue") teamMap[tn].predictedWins++;
-          else if (winner === "Red") teamMap[tn].predictedLosses++;
-          else teamMap[tn].predictedTies++;
-        });
-      });
-
-      const ranked = Object.values(teamMap).map(t => {
-        const total = t.predictedWins + t.predictedLosses + t.predictedTies;
-        const winRate = total ? ((t.predictedWins + 0.5 * t.predictedTies) / total) : 0;
-        return {
-          ...t,
-          winRate,
-          record: `${t.predictedWins}-${t.predictedLosses}-${t.predictedTies}`
-        };
-      }).sort((a, b) => b.winRate - a.winRate || (b.opr ?? 0) - (a.opr ?? 0));
-
-      const first = ranked[0];
-      const highlight = teamMap[highlightTeam];
-
-      const summary = document.getElementById("summary-container");
-      summary.innerHTML = `
-        <div class="summary-box">
-          <strong>1st Place Prediction:</strong> Team ${first.teamNumber} - ${first.teamName} (Predicted W-L-T: ${first.record}, Win Rate: ${(first.winRate * 100).toFixed(1)}%, High Score: ${first.highScore})
-        </div>
-      `;
-
-      if (highlight) {
-        const rank = ranked.findIndex(t => t.teamNumber === highlightTeam) + 1;
-        summary.innerHTML += `
-          <div class="summary-box">
-            Team ${highlightTeam} - ${highlight.teamName} is predicted to be in ${getOrdinal(rank)} place (Predicted W-L-T: ${highlight.predictedWins}-${highlight.predictedLosses}-${highlight.predictedTies}, Win Rate: ${(highlight.winRate * 100).toFixed(1)}%, High Score: ${highlight.highScore})
-          </div>
-        `;
-      }
-
-      loading.textContent = "";
-    } catch (err) {
-      loading.textContent = "Error loading data. Please check the event code.";
-      console.error(err);
-    }
-  });
+document.addEventListener("DOMContentLoaded",function(){document.querySelectorAll("th").forEach(th=>{th.style.cursor="pointer"});let table=document.getElementById("rankings"),thElements=table.querySelectorAll("th"),sortDirection=Array(thElements.length).fill(true);thElements.forEach((th,i)=>{th.addEventListener("click",()=>{let rows=Array.from(table.querySelectorAll("tbody tr")),isNumeric=th.textContent==="Total"||th.textContent==="Auto"||th.textContent==="Teleop"||th.textContent==="Endgame",sortFn=isNumeric?(a,b)=>{let aText=a.children[i].textContent,bText=b.children[i].textContent,aVal=parseFloat(aText),bVal=parseFloat(bText);if(isNaN(aVal))aVal=-Infinity;if(isNaN(bVal))bVal=-Infinity;return sortDirection[i]?bVal-aVal:aVal-bVal}:(a,b)=>{let aText=a.children[i].textContent.toLowerCase(),bText=b.children[i].textContent.toLowerCase();return sortDirection[i]?aText.localeCompare(bText):bText.localeCompare(aText)};rows.sort(sortFn);let tbody=table.querySelector("tbody");rows.forEach(row=>tbody.appendChild(row));sortDirection[i]=!sortDirection[i]})})});
 </script>
 </body>
 </html>
