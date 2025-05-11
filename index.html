@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match OPR Viewer</title>
+  <title>FTC OPR Match Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
@@ -55,7 +55,7 @@
       text-align: center;
       font-size: 14px;
       word-wrap: break-word;
-      border: none;
+      border: 1px solid #333;
     }
     th {
       background-color: #292929;
@@ -174,6 +174,7 @@
 
   <script>
     const teamCache = {};
+    const allTeams = {};
     const matchResults = {};
 
     document.getElementById("loadButton").addEventListener("click", loadMatches);
@@ -210,11 +211,14 @@
         ]);
         const name = info.name || "Unknown";
         const opr = stats?.tot?.value ?? 0;
-        teamCache[teamNumber] = { name, opr };
-        return { name, opr };
+        const team = { name, opr };
+        teamCache[teamNumber] = team;
+        allTeams[teamNumber] = team;
+        return team;
       } catch {
-        teamCache[teamNumber] = { name: "Unknown", opr: 0 };
-        return { name: "Unknown", opr: 0 };
+        const fallback = { name: "Unknown", opr: 0 };
+        teamCache[teamNumber] = fallback;
+        return fallback;
       }
     }
 
@@ -222,9 +226,9 @@
       if (matchNumber < 20000) {
         return `Q-${matchNumber}`;
       } else {
-        const round = Math.floor(matchNumber / 1000) - 20;
+        const round = Math.floor(matchNumber / 1000) - 20 + 1;
         const instance = matchNumber % 1000;
-        return instance === 1 ? `${round}` : `${round}.${instance}`;
+        return instance === 1 ? `M-${round}` : `M-${round}.${instance}`;
       }
     }
 
@@ -237,7 +241,7 @@
       tbody.innerHTML = "";
       document.getElementById("summary-container").innerHTML = "";
       document.getElementById("loading").textContent = "Loading...";
-      Object.keys(matchResults).forEach(k => delete matchResults[k]);
+      Object.keys(allTeams).forEach(k => delete allTeams[k]);
 
       try {
         const matches = await fetchJSON("https://api.ftcscout.org/rest/v1/events/2024/" + code + "/matches");
@@ -263,26 +267,30 @@
           const row = document.createElement("tr");
           row.innerHTML = `
             <td>${formatMatchNumber(matchNumber)}</td>
-            <td class="${highlightTeam === redTeams[0]?.teamNumber ? 'highlighted red-team' : 'red-team'} ${winner === 'Red' ? 'winner' : ''}">
-              ${redTeams[0]?.teamNumber ?? ''} - ${redData[0]?.name ?? ''}
-            </td>
-            <td class="${highlightTeam === redTeams[1]?.teamNumber ? 'highlighted red-team' : 'red-team'} ${winner === 'Red' ? 'winner' : ''}">
-              ${redTeams[1]?.teamNumber ?? ''} - ${redData[1]?.name ?? ''}
-            </td>
+            <td class="${highlightTeam === redTeams[0]?.teamNumber ? 'highlighted red-team' : 'red-team'}">${redTeams[0]?.teamNumber ?? ''} - ${redData[0]?.name ?? ''}</td>
+            <td class="${highlightTeam === redTeams[1]?.teamNumber ? 'highlighted red-team' : 'red-team'}">${redTeams[1]?.teamNumber ?? ''} - ${redData[1]?.name ?? ''}</td>
             <td class="red-score ${winner === 'Red' ? 'winner' : ''}">${redScore}</td>
             <td style="color: ${winner === 'Red' ? '#ff4d4d' : winner === 'Blue' ? '#4d94ff' : '#ccc'}">${winner}</td>
             <td class="blue-score ${winner === 'Blue' ? 'winner' : ''}">${blueScore}</td>
-            <td class="${highlightTeam === blueTeams[0]?.teamNumber ? 'highlighted blue-team' : 'blue-team'} ${winner === 'Blue' ? 'winner' : ''}">
-              ${blueTeams[0]?.teamNumber ?? ''} - ${blueData[0]?.name ?? ''}
-            </td>
-            <td class="${highlightTeam === blueTeams[1]?.teamNumber ? 'highlighted blue-team' : 'blue-team'} ${winner === 'Blue' ? 'winner' : ''}">
-              ${blueTeams[1]?.teamNumber ?? ''} - ${blueData[1]?.name ?? ''}
-            </td>
+            <td class="${highlightTeam === blueTeams[0]?.teamNumber ? 'highlighted blue-team' : 'blue-team'}">${blueTeams[0]?.teamNumber ?? ''} - ${blueData[0]?.name ?? ''}</td>
+            <td class="${highlightTeam === blueTeams[1]?.teamNumber ? 'highlighted blue-team' : 'blue-team'}">${blueTeams[1]?.teamNumber ?? ''} - ${blueData[1]?.name ?? ''}</td>
           `;
           tbody.appendChild(row);
         }
 
         document.getElementById("loading").textContent = "";
+
+        if (Object.keys(allTeams).length > 0) {
+          const sorted = Object.entries(allTeams).sort((a, b) => b[1].opr - a[1].opr);
+          const [topTeam, topData] = sorted[0];
+          addSummary(`#1 Team by OPR: ${topTeam} - ${topData.name} (${topData.opr.toFixed(1)})`);
+        }
+
+        if (!isNaN(highlightTeam) && teamCache[highlightTeam]) {
+          const team = teamCache[highlightTeam];
+          addSummary(`Highlighted Team: ${highlightTeam} - ${team.name} (${team.opr.toFixed(1)} OPR)`);
+        }
+
         addPopup("Matches loaded successfully.");
       } catch (e) {
         console.error(e);
