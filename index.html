@@ -82,74 +82,68 @@ a:hover { text-decoration: underline; }
 <div class="popup-container" id="popup-container"></div>
 <div id="footer">Powered by FTCScout API</div>
 <script>
-let cachedData = []
-let lastEventCode = ''
-let lastYear = ''
-let abortController = null
-let isMatchMode = false
-
-function toggleMode() {
-  isMatchMode = !isMatchMode
-  document.getElementById("event-title").textContent = isMatchMode ? "FTC Match Scouting" : "FTC Event Scouting"
-  document.getElementById("toggleModeBtn").textContent = isMatchMode ? "Switch to Event Scouting" : "Switch to Match Scouting"
-  document.getElementById("rankings").style.display = isMatchMode ? "none" : ""
-  document.getElementById("event-info").style.display = isMatchMode ? "none" : ""
-  document.getElementById("total-teams").style.display = isMatchMode ? "none" : ""
-  document.getElementById("sortBy").disabled = isMatchMode
-}
-
-function addPopup(message) {
-  const container = document.getElementById("popup-container")
-  const popup = document.createElement("div")
-  popup.className = "popup"
-  popup.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">Dismiss</button>`
-  container.appendChild(popup)
-  if (container.children.length > 5) container.firstChild.remove()
-}
-
-function ordinal(n) {
-  const s = ["th","st","nd","rd"],v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
-}
-
-function renderOPRCell(opr, key, sortBy) {
-  if (!opr.rank) return `<td class="${key === sortBy ? 'sorted' : ''}">No Data</td>`
-  let cls = ''
-  if (opr.rank < 100) cls = 'rank-green'
-  else if (opr.rank < 250) cls = 'rank-yellow'
-  else if (opr.rank < 500) cls = 'rank-orange'
-  return `<td class="${key === sortBy ? 'sorted' : ''} ${cls}">${opr.display}</td>`
-}
-
-function clearHeaderHighlights() {
-  document.querySelectorAll("th").forEach(th => th.classList.remove("highlight"))
-}
-
-function handleSortChange() {
-  const sortBy = document.getElementById("sortBy").value
-  const highlightTeam = parseInt(document.getElementById("highlightTeam").value.trim()) || null
-  clearHeaderHighlights()
-  document.getElementById(`${sortBy}Header`).classList.add("highlight")
-  renderLiveTable(sortBy, highlightTeam)
-}
-
-async function fetchJSON(url, signal) {
-  const res = await fetch(url, { signal })
-  if (!res.ok) throw new Error(`Error ${res.status}`)
-  return res.json()
-}
-
 async function loadData() {
-  if (isMatchMode) {
-    addPopup("Match scouting mode is currently a placeholder.")
-    return
-  }
-
   const code = document.getElementById("eventCode").value.trim()
   const year = document.getElementById("year").value
   const sortBy = document.getElementById("sortBy").value
   const highlightTeam = parseInt(document.getElementById("highlightTeam").value.trim()) || null
 
+  if (abortController) abortController.abort()
+  abortController = new AbortController()
+  const { signal } = abortController
+
+  document.getElementById("loading").textContent = "Loading..."
+  document.getElementById("no-data-warning").innerHTML = ""
+  document.getElementById("total-teams").textContent = ""
+  document.getElementById("rankings").style.display = isMatchMode ? "none" : ""
+  document.getElementById("match-table").innerHTML = ""
+
+  if (isMatchMode) {
+    try {
+      const event = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/${year}/${code}`, signal)
+      document.getElementById("event-title").textContent = `${event.name} Match List`
+      const matches = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/${year}/${code}/matches`, signal)
+
+      if (!matches || matches.length === 0) {
+        document.getElementById("loading").textContent = "No matches found."
+        return
+      }
+
+      let html = `<table><thead>
+        <tr>
+          <th>Match #</th>
+          <th>Red Alliance</th>
+          <th>Blue Alliance</th>
+          <th>Red Score</th>
+          <th>Blue Score</th>
+        </tr></thead><tbody>`
+
+      matches.sort((a, b) => a.matchNumber - b.matchNumber).forEach(match => {
+        const redTeams = match.redAlliance.join(', ')
+        const blueTeams = match.blueAlliance.join(', ')
+        html += `<tr>
+          <td>${match.matchNumber}</td>
+          <td>${redTeams}</td>
+          <td>${blueTeams}</td>
+          <td>${match.redScore ?? '-'}</td>
+          <td>${match.blueScore ?? '-'}</td>
+        </tr>`
+      })
+
+      html += `</tbody></table>`
+      document.getElementById("match-table").innerHTML = html
+      document.getElementById("loading").textContent = ""
+      return
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        document.getElementById("loading").textContent = "Error loading match data."
+        addPopup("Match data not found or error occurred.")
+      }
+      return
+    }
+  }
+
+  // --- EVENT MODE (unchanged) ---
   if (code === lastEventCode && year === lastYear) {
     handleSortChange()
     return
@@ -162,14 +156,6 @@ async function loadData() {
   lastYear = year
   clearHeaderHighlights()
   document.getElementById(`${sortBy}Header`).classList.add("highlight")
-
-  if (abortController) abortController.abort()
-  abortController = new AbortController()
-  const { signal } = abortController
-
-  document.getElementById("loading").textContent = "Loading event..."
-  document.getElementById("no-data-warning").innerHTML = ""
-  document.getElementById("total-teams").textContent = ""
 
   try {
     const event = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/${year}/${code}`, signal)
@@ -217,51 +203,9 @@ async function loadData() {
     }
   }
 }
-
-function renderLiveTable(sortBy, highlightTeam) {
-  const tbody = document.querySelector("#rankings tbody")
-  tbody.innerHTML = ""
-  const sorted = [...cachedData].sort((a, b) => (b.values[sortBy]?.value ?? -Infinity) - (a.values[sortBy]?.value ?? -Infinity))
-  let highlightEntry = null
-
-  sorted.forEach((team, idx) => {
-    const row = document.createElement("tr")
-    if (team.teamNumber === highlightTeam) {
-      row.classList.add("highlight")
-      highlightEntry = { ...team, rank: ordinal(idx + 1) }
-    }
-    row.innerHTML = `
-      <td>${ordinal(idx + 1)}</td>
-      <td><a href="https://ftcscout.org/teams/${team.teamNumber}" target="_blank">#${team.teamNumber} - ${team.name}</a></td>
-      <td>${team.location}</td>
-      ${renderOPRCell(team.values.tot, 'tot', sortBy)}
-      ${renderOPRCell(team.values.auto, 'auto', sortBy)}
-      ${renderOPRCell(team.values.dc, 'dc', sortBy)}
-      ${renderOPRCell(team.values.eg, 'eg', sortBy)}
-    `
-    tbody.appendChild(row)
-  })
-
-  if (highlightEntry) {
-    const topRow = document.createElement("tr")
-    topRow.classList.add("highlight")
-    topRow.innerHTML = `
-      <td>${highlightEntry.rank}</td>
-      <td><a href="https://ftcscout.org/teams/${highlightEntry.teamNumber}" target="_blank">#${highlightEntry.teamNumber} - ${highlightEntry.name}</a></td>
-      <td>${highlightEntry.location}</td>
-      ${renderOPRCell(highlightEntry.values.tot, 'tot', sortBy)}
-      ${renderOPRCell(highlightEntry.values.auto, 'auto', sortBy)}
-      ${renderOPRCell(highlightEntry.values.dc, 'dc', sortBy)}
-      ${renderOPRCell(highlightEntry.values.eg, 'eg', sortBy)}
-    `
-    tbody.insertBefore(topRow, tbody.firstChild)
-  }
-
-  const noDataCount = cachedData.filter(team => team.values.tot.display === "No Data").length
-  const warningBox = document.getElementById("no-data-warning")
-  warningBox.innerHTML = noDataCount > 0 ? `<div class="warning-box">⚠️ Warning: ${noDataCount} team${noDataCount > 1 ? "s" : ""} in this event ${noDataCount > 1 ? "have" : "has"} no data this season!</div>` : ""
-  document.getElementById("total-teams").textContent = `Total Teams: ${cachedData.length}`
-}
 </script>
+
+<!-- Add this somewhere in your HTML body -->
+<div id="match-table" style="margin-top: 20px;"></div>
 </body>
 </html>
