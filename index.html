@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC OPR Match Viewer</title>
+  <title>FTC Match OPR Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
@@ -65,10 +65,9 @@
       font-weight: 600;
     }
     table col:nth-child(1) { width: 10%; }
-    table col:nth-child(2), table col:nth-child(3),
+    table col:nth-child(2), table col:nth-child(3) { width: 13%; }
+    table col:nth-child(4), table col:nth-child(5), table col:nth-child(6) { width: 10%; }
     table col:nth-child(7), table col:nth-child(8) { width: 13%; }
-    table col:nth-child(4), table col:nth-child(6) { width: 10%; }
-    table col:nth-child(5) { width: 14%; }
 
     .red-team {
       background-color: #4d0000;
@@ -168,11 +167,11 @@
     <thead>
       <tr>
         <th>Match</th>
-        <th colspan="2">Red Alliance</th>
-        <th>Red OPR</th>
+        <th colspan="2">Red</th>
+        <th>Red</th>
         <th>Predicted Winner</th>
-        <th>Blue OPR</th>
-        <th colspan="2">Blue Alliance</th>
+        <th>Blue</th>
+        <th colspan="2">Blue</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -241,10 +240,9 @@
     function formatMatchNumber(matchNumber) {
       if (matchNumber > 20000) {
         const playoffRound = Math.floor((matchNumber - 20000) / 10) + 1;
-        const playoffMatch = matchNumber - 20000 - (playoffRound - 1) * 10;
-        return `M-${playoffRound}.${playoffMatch}`;
+        return playoffRound; // Display just the playoff round number (e.g., 1, 2, 3...)
       } else {
-        return `Q-${matchNumber}`;
+        return matchNumber; // Display regular match number
       }
     }
 
