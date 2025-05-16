@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC OPR Match Viewer</title>
+  <title>FTC Match Predictions</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
@@ -332,17 +332,16 @@
         });
 
         // Display top 5 summary
-        addSummary(`Top 5 Teams by RP (with Auto OPR Tiebreaker):`);
-        for (let i=0; i<Math.min(5, rankedTeams.length); i++) {
+        for (let i=0; i<Math.min(1, rankedTeams.length); i++) {
           const t = rankedTeams[i];
-          addSummary(`#${t.team} - RP: ${t.rp.toFixed(2)}, Auto OPR: ${t.auto.toFixed(2)}, Wins: ${t.wins}, Ties: ${t.ties}, High Score: ${t.highScore}`);
+          addSummary(`Predicted 1st Place: #${t.team} - RP: ${t.rp.toFixed(2)} (Auto OPR: ${t.auto.toFixed(2)}, W-L-T: ${t.wins}-${t.losses}-${t.ties}, High Score: ${t.highScore})`);
         }
 
         // Highlighted team placement if provided
         if (highlightTeam && matchResults[highlightTeam]) {
           const place = rankedTeams.findIndex(t => t.team === highlightTeam) + 1;
           const r = rankedTeams.find(t => t.team === highlightTeam);
-          addSummary(`Team #${highlightTeam} Place: ${place} / ${rankedTeams.length} — RP: ${r.rp.toFixed(2)}, Auto OPR: ${r.auto.toFixed(2)}, Wins: ${r.wins}, Ties: ${r.ties}, High Score: ${r.highScore}`);
+          addSummary(`Team #${highlightTeam} Place: ${place} / ${rankedTeams.length} — RP: ${r.rp.toFixed(2)} (Auto OPR: ${r.auto.toFixed(2)}, W-L-T: ${r.wins}-${r.losses}-${r.ties}, High Score: ${r.highScore})`);
         }
 
         document.getElementById("loading").textContent = "";
