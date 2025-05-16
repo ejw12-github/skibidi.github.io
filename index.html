@@ -341,7 +341,7 @@
         if (highlightTeam && matchResults[highlightTeam]) {
           const place = rankedTeams.findIndex(t => t.team === highlightTeam) + 1;
           const r = rankedTeams.find(t => t.team === highlightTeam);
-          addSummary(`Team #${highlightTeam} Place: ${place} / ${rankedTeams.length} — RP: ${r.rp.toFixed(2)} (Auto OPR: ${r.auto.toFixed(2)}, W-L-T: ${r.wins}-${r.losses}-${r.ties}, High Score: ${r.highScore})`);
+          addSummary(`${place} Place- Team #${highlightTeam} — RP: ${r.rp.toFixed(2)} (Auto OPR: ${r.auto.toFixed(2)}, W-L-T: ${r.wins}-${r.losses}-${r.ties}, High Score: ${r.highScore})`);
         }
 
         document.getElementById("loading").textContent = "";
