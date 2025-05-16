@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match Viewer</title>
+  <title>FTC OPR Match Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
@@ -144,7 +144,7 @@
 </head>
 <body>
 
-  <h1 id="event-title">FTC Match OPR Viewer</h1>
+  <h1 id="event-title">FTC Match OPR Viewer with RP Ranking</h1>
   <div class="info" id="event-info">Enter a valid FTCScout event code to get started.</div>
 
   <input type="text" id="eventCode" placeholder="Enter event code" />
@@ -213,11 +213,12 @@
         ]);
         const name = info.name || "Unknown";
         const opr = stats?.tot?.value ?? 0;
-        teamCache[teamNumber] = { name, opr };
-        return { name, opr };
+        const auto = stats?.auto?.value ?? 0;
+        teamCache[teamNumber] = { name, opr, auto };
+        return { name, opr, auto };
       } catch {
-        teamCache[teamNumber] = { name: "Unknown", opr: 0 };
-        return { name: "Unknown", opr: 0 };
+        teamCache[teamNumber] = { name: "Unknown", opr: 0, auto: 0 };
+        return { name: "Unknown", opr: 0, auto: 0 };
       }
     }
 
@@ -252,6 +253,7 @@
       document.getElementById("summary-container").innerHTML = "";
       document.getElementById("loading").textContent = "Loading...";
       Object.keys(matchResults).forEach(k => delete matchResults[k]);
+      Object.keys(teamCache).forEach(k => delete teamCache[k]);
 
       try {
         const matches = await fetchJSON("https://api.ftcscout.org/rest/v1/events/2024/" + code + "/matches");
@@ -270,12 +272,13 @@
           const redData = await Promise.all(redTeams.map(t => getTeamData(t.teamNumber)));
           const blueData = await Promise.all(blueTeams.map(t => getTeamData(t.teamNumber)));
 
+          // Sum OPRs for red and blue alliances
           const redScore = Math.round(redData.reduce((sum, t) => sum + t.opr, 0));
           const blueScore = Math.round(blueData.reduce((sum, t) => sum + t.opr, 0));
           const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
           const isPlayoff = matchNumber > 20000;
 
-          // Track match results without double-counting
+          // Track W-L-T for each team (excluding playoffs)
           for (let i = 0; i < redTeams.length; i++) {
             trackTeamMatchResult(redTeams[i].teamNumber, winner === "Red", winner === "Tie", redScore, isPlayoff);
           }
@@ -305,44 +308,50 @@
           tbody.appendChild(row);
         }
 
-        if (!isNaN(highlightTeam) && matchResults[highlightTeam]) {
-          const { wins, losses, ties, highScore } = matchResults[highlightTeam];
-          addSummary(`Team ${highlightTeam} is predicted to have a W-L-T of ${wins}-${losses}-${ties} and a high score of ${highScore} at this event.`);
-        }
-
-        // Determine predicted 1st place
-        let bestTeam = null;
-        for (const [team, record] of Object.entries(matchResults)) {
+        // Calculate RP and rank teams
+        const rankedTeams = Object.entries(matchResults).map(([team, record]) => {
           const { wins, losses, ties, highScore } = record;
-          const opr = teamCache[team]?.opr ?? 0;
+          const totalMatches = wins + losses + ties;
+          const rp = totalMatches === 0 ? 0 : ((2 * wins + ties) / totalMatches);
+          const auto = teamCache[team]?.auto ?? 0;
+          return {
+            team: parseInt(team),
+            wins, losses, ties,
+            rp: Math.round(rp * 100) / 100,
+            auto,
+            highScore
+          };
+        });
 
-          if (!bestTeam) {
-            bestTeam = { team, ...record, opr };
-          } else {
-            const better = (
-              wins > bestTeam.wins ||
-              (wins === bestTeam.wins && losses < bestTeam.losses) ||
-              (wins === bestTeam.wins && losses === bestTeam.losses && opr > bestTeam.opr)
-            );
-            if (better) {
-              bestTeam = { team, ...record, opr };
-            }
-          }
+        // Sort by RP desc, then Auto desc, then highScore desc
+        rankedTeams.sort((a,b) => {
+          if (b.rp !== a.rp) return b.rp - a.rp;
+          if (b.auto !== a.auto) return b.auto - a.auto;
+          return b.highScore - a.highScore;
+        });
+
+        // Display top 5 summary
+        addSummary(`Top 5 Teams by RP (with Auto OPR Tiebreaker):`);
+        for (let i=0; i<Math.min(5, rankedTeams.length); i++) {
+          const t = rankedTeams[i];
+          addSummary(`#${t.team} - RP: ${t.rp.toFixed(2)}, Auto OPR: ${t.auto.toFixed(2)}, Wins: ${t.wins}, Ties: ${t.ties}, High Score: ${t.highScore}`);
         }
 
-        if (bestTeam) {
-          const name = teamCache[bestTeam.team]?.name ?? "Unknown";
-          addSummary(`Predicted 1st Place: ${bestTeam.team} - ${name} (Predicted W-L-T: ${bestTeam.wins}-${bestTeam.losses}-${bestTeam.ties}, Predicted High Score: ${bestTeam.highScore})`);
+        // Highlighted team placement if provided
+        if (highlightTeam && matchResults[highlightTeam]) {
+          const place = rankedTeams.findIndex(t => t.team === highlightTeam) + 1;
+          const r = rankedTeams.find(t => t.team === highlightTeam);
+          addSummary(`Team #${highlightTeam} Place: ${place} / ${rankedTeams.length} — RP: ${r.rp.toFixed(2)}, Auto OPR: ${r.auto.toFixed(2)}, Wins: ${r.wins}, Ties: ${r.ties}, High Score: ${r.highScore}`);
         }
 
         document.getElementById("loading").textContent = "";
-        addPopup("Matches loaded successfully.");
-      } catch (e) {
-        console.error(e);
-        addPopup("Error loading data. Please check the event code.");
+
+      } catch (err) {
         document.getElementById("loading").textContent = "";
+        addPopup("Failed to load data: " + err.message);
       }
     }
   </script>
+
 </body>
 </html>
