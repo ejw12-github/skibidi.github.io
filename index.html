@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match OPR Viewer (Dark Mode)</title>
+  <title>FTC Match Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -61,8 +61,8 @@
     }
 
     table {
-      width: 95%;
-      max-width: 1100px;
+      width: 98%;
+      max-width: 1400px;
       border-collapse: collapse;
       margin-top: 20px;
       background-color: var(--card-bg);
@@ -81,18 +81,21 @@
       font-weight: 600;
     }
 
-    .red-team, .highlighted.red-team {
-      background-color: var(--accent-red);
-      color: black;
+    .red-team {
+      background-color: var(--card-bg);
+      color: var(--fg);
     }
 
-    .blue-team, .highlighted.blue-team {
-      background-color: var(--accent-blue);
-      color: white;
+    .blue-team {
+      background-color: var(--card-bg);
+      color: var(--fg);
     }
 
-    .winner {
+    .highlighted {
       font-weight: bold;
+      box-shadow: inset 0 0 0 1000px rgba(255, 255, 255, 0.05);
+      border: 2px solid var(--accent-yellow);
+      border-radius: 4px;
     }
 
     .summary-box {
@@ -139,11 +142,13 @@
     <thead>
       <tr>
         <th>Match</th>
-        <th colspan="2">Red Alliance</th>
+        <th>Red 1</th>
+        <th>Red 2</th>
         <th>Red OPR</th>
         <th>Winner</th>
         <th>Blue OPR</th>
-        <th colspan="2">Blue Alliance</th>
+        <th>Blue 1</th>
+        <th>Blue 2</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -187,14 +192,14 @@
           fetchJSON("https://api.ftcscout.org/rest/v1/teams/" + teamNumber + "/quick-stats?season=2024")
         ]);
         const name = info.name || "Unknown";
-        const opr = stats?.tot?.value ?? 0;
+        const opr = stats?.tot?.value ?? null;
         const auto = stats?.auto?.value ?? 0;
         teamCache[teamNumber] = { name, opr, auto };
         teamNames[teamNumber] = name;
         return { name, opr, auto };
       } catch {
-        teamCache[teamNumber] = { name: "Unknown", opr: 0, auto: 0 };
-        return { name: "Unknown", opr: 0, auto: 0 };
+        teamCache[teamNumber] = { name: "Unknown", opr: null, auto: 0 };
+        return { name: "Unknown", opr: null, auto: 0 };
       }
     }
 
@@ -253,10 +258,10 @@
           const redData = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
           const blueData = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
 
-          const redOPR = Math.round(redData.reduce((a, b) => a + b.opr, 0));
-          const blueOPR = Math.round(blueData.reduce((a, b) => a + b.opr, 0));
-          const redAuto = Math.round(redData.reduce((a, b) => a + b.auto, 0));
-          const blueAuto = Math.round(blueData.reduce((a, b) => a + b.auto, 0));
+          const redOPR = Math.round(redData.reduce((a, b) => a + (b.opr ?? 0), 0));
+          const blueOPR = Math.round(blueData.reduce((a, b) => a + (b.opr ?? 0), 0));
+          const redAuto = Math.round(redData.reduce((a, b) => a + (b.auto ?? 0), 0));
+          const blueAuto = Math.round(blueData.reduce((a, b) => a + (b.auto ?? 0), 0));
 
           const winner = redOPR > blueOPR ? "Red" : blueOPR > redOPR ? "Blue" : "Tie";
 
@@ -269,15 +274,21 @@
           }
 
           const row = document.createElement("tr");
+
+          const redT1 = red[0].teamNumber;
+          const redT2 = red[1].teamNumber;
+          const blueT1 = blue[0].teamNumber;
+          const blueT2 = blue[1].teamNumber;
+
           row.innerHTML = `
             <td>${formatMatchNumber(num)}</td>
-            <td class="${highlightTeam === red[0].teamNumber ? 'highlighted red-team' : 'red-team'}">${red[0].teamNumber} - ${redData[0].name}</td>
-            <td class="${highlightTeam === red[1].teamNumber ? 'highlighted red-team' : 'red-team'}">${red[1].teamNumber} - ${redData[1].name}</td>
+            <td class="red-team ${highlightTeam === redT1 ? 'highlighted' : ''}">${redT1} - ${redData[0].name}</td>
+            <td class="red-team ${highlightTeam === redT2 ? 'highlighted' : ''}">${redT2} - ${redData[1].name}</td>
             <td>${redOPR}</td>
             <td style="color:${winner === 'Red' ? 'var(--accent-red)' : winner === 'Blue' ? 'var(--accent-blue)' : '#ccc'}">${winner}</td>
             <td>${blueOPR}</td>
-            <td class="${highlightTeam === blue[0].teamNumber ? 'highlighted blue-team' : 'blue-team'}">${blue[0].teamNumber} - ${blueData[0].name}</td>
-            <td class="${highlightTeam === blue[1].teamNumber ? 'highlighted blue-team' : 'blue-team'}">${blue[1].teamNumber} - ${blueData[1].name}</td>
+            <td class="blue-team ${highlightTeam === blueT1 ? 'highlighted' : ''}">${blueT1} - ${blueData[0].name}</td>
+            <td class="blue-team ${highlightTeam === blueT2 ? 'highlighted' : ''}">${blueT2} - ${blueData[1].name}</td>
           `;
           tbody.appendChild(row);
         }
