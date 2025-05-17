@@ -271,7 +271,7 @@
 
         eventTitle.textContent = event.name || "FTC Event";
 
-        let highestScore = 0, highTeams = [], totalMatchScore = 0, matchCount = 0;
+        let highestScore = 0, highTeams = [], totalAverageMatchScore = 0, matchCount = 0;
 
         for (const match of matches) {
           const num = match.id || match.matchNumber;
@@ -299,7 +299,7 @@
             highTeams = redOPR > blueOPR ? red : blue;
           }
 
-          totalMatchScore += redOPR + blueOPR;
+          totalAverageMatchScore += (redOPR + blueOPR) / 2;
           matchCount++;
 
           const row = document.createElement("tr");
@@ -330,14 +330,14 @@
           tbody.appendChild(row);
         }
 
-        const avgMatchScore = (totalMatchScore / matchCount).toFixed(2);
+        const avgMatchScore = (totalAverageMatchScore / matchCount).toFixed(2);
 
         if (highTeams.length === 2) {
           const names = highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ");
           addSummary(`Predicted High Score: ${highestScore} (${names})`);
         }
 
-        addSummary(`Average Match Score: ${avgMatchScore}`);
+        addSummary(`Predicted Average Match Score: ${avgMatchScore}`);
         addSpacer();
 
         const ranks = Object.entries(matchResults).map(([team, r]) => {
