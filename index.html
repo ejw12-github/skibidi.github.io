@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match OPR Predictions</title>
+  <title>FTC Match Predictions</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -227,7 +227,8 @@
         const playoff = num - 20000;
         const round = Math.floor(playoff / 1000);
         const sub = playoff % 100;
-        return `M-${round + (sub > 0 ? '.' + sub : '')}`;
+        if (sub === 1) return `M-${round}`;
+        return `M-${round}.${sub}`;
       }
       return `Q-${num}`;
     }
@@ -259,7 +260,7 @@
 
         eventTitle.textContent = event.name || "FTC Event";
 
-        let highestScore = 0, highTeams = [];
+        let highestScore = 0, highTeams = [], totalMatchScore = 0, matchCount = 0;
 
         for (const match of matches) {
           const num = match.id || match.matchNumber;
@@ -286,6 +287,9 @@
             highestScore = Math.max(redOPR, blueOPR);
             highTeams = redOPR > blueOPR ? red : blue;
           }
+
+          totalMatchScore += redOPR + blueOPR;
+          matchCount++;
 
           const row = document.createElement("tr");
 
@@ -315,17 +319,22 @@
           tbody.appendChild(row);
         }
 
+        const avgMatchScore = (totalMatchScore / matchCount).toFixed(1);
+
+        if (highTeams.length === 2) {
+          const names = highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ");
+          addSummary(`Predicted High Score: ${highestScore} (${names})`);
+        }
+
+        addSummary(`Average Match Score: ${avgMatchScore}`);
+        addSummary(`<br>`); // spacing
+
         const ranks = Object.entries(matchResults).map(([team, r]) => {
           const autoTotals = teamScores[team]?.autoAllianceTotals ?? [];
           const tbp = autoTotals.length ? autoTotals.reduce((a, b) => a + b, 0) / autoTotals.length : 0;
           const rp = ((2 * r.wins + r.ties) / (r.wins + r.losses + r.ties)) || 0;
           return { team: +team, name: teamNames[team], rp: +rp.toFixed(2), tbp: +tbp.toFixed(2), ...r };
         }).sort((a, b) => b.rp - a.rp || b.tbp - a.tbp || b.highScore - a.highScore);
-
-        if (highTeams.length === 2) {
-          const names = highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ");
-          addSummary(`Predicted High Score: ${highestScore} (${names})`);
-        }
 
         const top = ranks[0];
         addSummary(`Predicted 1st Place: ${top.team} - ${top.name} (RP: ${top.rp}, TBP: ${top.tbp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.highScore})`);
