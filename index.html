@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match Predictions</title>
+  <title>FTC Match OPR Predictions</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -225,7 +225,7 @@
     function formatMatchNumber(num) {
       if (num > 20000) {
         const playoff = num - 20000;
-        const round = Math.floor(playoff / 100);
+        const round = Math.floor(playoff / 1000);
         const sub = playoff % 100;
         return `M-${round + (sub > 0 ? '.' + sub : '')}`;
       }
