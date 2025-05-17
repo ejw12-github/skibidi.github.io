@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match Viewer</title>
+  <title>FTC Match Predictions</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #121212;
-      --fg: #e0e0e0;
+      --fg: #ffffff;
       --accent-red: #ff4d4d;
       --accent-blue: #4d94ff;
       --accent-yellow: #ffd700;
+      --accent-purple: #b366ff;
       --card-bg: #1e1e1e;
       --border: #333;
     }
@@ -26,13 +27,13 @@
     }
 
     h1 {
-      font-size: 26px;
+      font-size: 28px;
       font-weight: 700;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
       text-align: center;
     }
 
-    .info {
+    .info, #eventTitle {
       font-size: 14px;
       color: #aaa;
       margin-bottom: 20px;
@@ -82,20 +83,23 @@
     }
 
     .red-team {
-      background-color: var(--card-bg);
-      color: var(--fg);
+      color: var(--accent-red);
     }
 
     .blue-team {
-      background-color: var(--card-bg);
-      color: var(--fg);
+      color: var(--accent-blue);
     }
 
     .highlighted {
       font-weight: bold;
-      box-shadow: inset 0 0 0 1000px rgba(255, 255, 255, 0.05);
-      border: 2px solid var(--accent-yellow);
-      border-radius: 4px;
+    }
+
+    .highlighted.red-team {
+      color: var(--accent-red);
+    }
+
+    .highlighted.blue-team {
+      color: var(--accent-blue);
     }
 
     .summary-box {
@@ -126,8 +130,8 @@
 </head>
 <body>
 
-  <h1>FTC Match OPR Viewer (Dark Mode)</h1>
-  <div class="info">Enter a valid FTCScout event code to begin.</div>
+  <h1>FTC Match Predictions</h1>
+  <div id="eventTitle" class="info">Enter a valid FTCScout event code to begin.</div>
 
   <div>
     <input type="text" id="eventCode" placeholder="Enter event code" />
@@ -233,17 +237,27 @@
       const highlightTeam = parseInt(document.getElementById("highlightTeam").value.trim());
       const tbody = document.querySelector("#matches tbody");
       const summaryBox = document.getElementById("summary-container");
-      document.getElementById("loading").textContent = "Loading...";
+      const loadingMsg = document.getElementById("loading");
+      const eventTitle = document.getElementById("eventTitle");
+
+      loadingMsg.textContent = "Loading...";
       tbody.innerHTML = "";
       summaryBox.innerHTML = "";
       Object.keys(teamCache).forEach(k => delete teamCache[k]);
       Object.keys(matchResults).forEach(k => delete matchResults[k]);
       Object.keys(teamScores).forEach(k => delete teamScores[k]);
       teamNames = {};
+      eventTitle.textContent = "";
 
       try {
-        const matches = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}/matches`);
+        const [matches, event] = await Promise.all([
+          fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}/matches`),
+          fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}`)
+        ]);
+
         if (!matches.length) return addSummary("No matches found.");
+
+        eventTitle.textContent = event.name || "FTC Event";
 
         let highestScore = 0, highTeams = [];
 
@@ -280,20 +294,24 @@
           const blueT1 = blue[0].teamNumber;
           const blueT2 = blue[1].teamNumber;
 
+          let winnerColor = "#ccc";
+          if (winner === "Red") winnerColor = "var(--accent-red)";
+          else if (winner === "Blue") winnerColor = "var(--accent-blue)";
+          else if (winner === "Tie") winnerColor = "var(--accent-purple)";
+
           row.innerHTML = `
             <td>${formatMatchNumber(num)}</td>
             <td class="red-team ${highlightTeam === redT1 ? 'highlighted' : ''}">${redT1} - ${redData[0].name}</td>
             <td class="red-team ${highlightTeam === redT2 ? 'highlighted' : ''}">${redT2} - ${redData[1].name}</td>
-            <td>${redOPR}</td>
-            <td style="color:${winner === 'Red' ? 'var(--accent-red)' : winner === 'Blue' ? 'var(--accent-blue)' : '#ccc'}">${winner}</td>
-            <td>${blueOPR}</td>
+            <td class="red-team">${redOPR}</td>
+            <td style="color:${winnerColor}">${winner}</td>
+            <td class="blue-team">${blueOPR}</td>
             <td class="blue-team ${highlightTeam === blueT1 ? 'highlighted' : ''}">${blueT1} - ${blueData[0].name}</td>
             <td class="blue-team ${highlightTeam === blueT2 ? 'highlighted' : ''}">${blueT2} - ${blueData[1].name}</td>
           `;
           tbody.appendChild(row);
         }
 
-        // Rankings
         const ranks = Object.entries(matchResults).map(([team, r]) => {
           const autoTotals = teamScores[team]?.autoAllianceTotals ?? [];
           const tbp = autoTotals.length ? autoTotals.reduce((a, b) => a + b, 0) / autoTotals.length : 0;
@@ -301,27 +319,24 @@
           return { team: +team, name: teamNames[team], rp: +rp.toFixed(2), tbp: +tbp.toFixed(2), ...r };
         }).sort((a, b) => b.rp - a.rp || b.tbp - a.tbp || b.highScore - a.highScore);
 
-        // Predicted high score teams
         if (highTeams.length === 2) {
           const names = highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ");
           addSummary(`Predicted High Score: ${highestScore} (${names})`);
         }
 
-        // Top team
         const top = ranks[0];
         addSummary(`Predicted 1st Place: Team ${top.team} - ${top.name} (RP: ${top.rp}, TBP: ${top.tbp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.highScore})`);
 
-        // Highlighted team
         if (highlightTeam && matchResults[highlightTeam]) {
           const index = ranks.findIndex(t => t.team === highlightTeam);
           const t = ranks[index];
           addSummary(`Predicted ${toOrdinal(index + 1)} Place: Team ${t.team} - ${t.name} (RP: ${t.rp}, TBP: ${t.tbp}, W-L-T: ${t.wins}-${t.losses}-${t.ties}, High Score: ${t.highScore})`);
         }
 
-        document.getElementById("loading").textContent = "";
+        loadingMsg.textContent = "";
 
       } catch (err) {
-        document.getElementById("loading").textContent = "";
+        loadingMsg.textContent = "";
         addSummary("Failed to load data: " + err.message);
       }
     }
