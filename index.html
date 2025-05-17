@@ -2,158 +2,146 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC OPR Match Viewer</title>
+  <title>FTC Match OPR Viewer (Dark Mode)</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --bg: #121212;
+      --fg: #e0e0e0;
+      --accent-red: #ff4d4d;
+      --accent-blue: #4d94ff;
+      --accent-yellow: #ffd700;
+      --card-bg: #1e1e1e;
+      --border: #333;
+    }
+
     body {
       font-family: 'Inter', sans-serif;
-      background-color: #f9f9f9;
-      color: #333;
+      background-color: var(--bg);
+      color: var(--fg);
       padding: 20px;
-      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     h1 {
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 700;
       margin-bottom: 10px;
+      text-align: center;
     }
 
     .info {
-      margin-bottom: 20px;
       font-size: 14px;
-      color: #666;
+      color: #aaa;
+      margin-bottom: 20px;
+      text-align: center;
     }
 
     input, button {
       padding: 8px 12px;
-      margin-right: 10px;
+      margin: 5px;
       font-size: 14px;
-      border: 1px solid #ccc;
       border-radius: 6px;
+      border: 1px solid var(--border);
+      background-color: #222;
+      color: var(--fg);
     }
 
     button {
-      background-color: #007bff;
+      background-color: var(--accent-blue);
       color: white;
       border: none;
       cursor: pointer;
     }
 
     button:hover {
-      background-color: #0056b3;
+      background-color: #1c6ed2;
     }
 
     table {
-      width: 100%;
+      width: 95%;
+      max-width: 1100px;
       border-collapse: collapse;
       margin-top: 20px;
-      background-color: white;
-      border: 1px solid #ddd;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
     }
 
     th, td {
       padding: 10px;
       text-align: center;
-      border: 1px solid #ddd;
+      border: 1px solid var(--border);
       font-size: 13px;
     }
 
     th {
-      background-color: #f2f2f2;
+      background-color: #2c2c2c;
       font-weight: 600;
     }
 
-    .red-team {
-      color: #ff4d4d;
+    .red-team, .highlighted.red-team {
+      background-color: var(--accent-red);
+      color: black;
     }
 
-    .blue-team {
-      color: #4d94ff;
+    .blue-team, .highlighted.blue-team {
+      background-color: var(--accent-blue);
+      color: white;
     }
 
     .winner {
       font-weight: bold;
     }
 
-    .highlighted {
-      background-color: #ffffcc;
-    }
-
     .summary-box {
-      background-color: #e6f7ff;
-      border: 1px solid #91d5ff;
-      padding: 10px;
+      background-color: #2c2c2c;
+      border: 1px solid var(--border);
+      padding: 12px 16px;
       margin-top: 10px;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 14px;
+      color: var(--fg);
+      max-width: 800px;
+      text-align: center;
     }
 
     #footer {
       margin-top: 40px;
       font-size: 12px;
-      color: #aaa;
+      color: #777;
       text-align: center;
-    }
-
-    .popup-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      max-width: 300px;
-      z-index: 1000;
-    }
-
-    .popup {
-      background: #fff3cd;
-      border: 1px solid #ffeeba;
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 6px;
-      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-      font-size: 13px;
-    }
-
-    .popup button {
-      margin-top: 5px;
-      background: #ffc107;
-      border: none;
-      padding: 5px 10px;
-      font-size: 12px;
-      border-radius: 4px;
-      cursor: pointer;
     }
 
     #loading {
       font-size: 14px;
       margin-top: 10px;
-      color: #888;
+      color: #aaa;
     }
   </style>
 </head>
 <body>
 
-  <h1 id="event-title">FTC Match OPR Viewer with RP & TBP</h1>
-  <div class="info" id="event-info">Enter a valid FTCScout event code to get started.</div>
+  <h1>FTC Match OPR Viewer (Dark Mode)</h1>
+  <div class="info">Enter a valid FTCScout event code to begin.</div>
 
-  <input type="text" id="eventCode" placeholder="Enter event code" />
-  <input type="number" id="highlightTeam" placeholder="Highlight team #" />
-  <button id="loadButton">Load Matches</button>
+  <div>
+    <input type="text" id="eventCode" placeholder="Enter event code" />
+    <input type="number" id="highlightTeam" placeholder="Highlight team #" />
+    <button id="loadButton">Load Matches</button>
+  </div>
 
   <div id="summary-container"></div>
-
   <div id="loading"></div>
 
   <table id="matches">
-    <colgroup>
-      <col><col><col><col><col><col><col><col>
-    </colgroup>
     <thead>
       <tr>
         <th>Match</th>
         <th colspan="2">Red Alliance</th>
         <th>Red OPR</th>
-        <th>Predicted Winner</th>
+        <th>Winner</th>
         <th>Blue OPR</th>
         <th colspan="2">Blue Alliance</th>
       </tr>
@@ -161,24 +149,15 @@
     <tbody></tbody>
   </table>
 
-  <div class="popup-container" id="popup-container"></div>
   <div id="footer">Powered by FTCScout API</div>
 
   <script>
     const teamCache = {};
     const matchResults = {};
-    const teamScores = {}; // For tracking TBP as avg total alliance auto
+    const teamScores = {};
+    let teamNames = {};
 
     document.getElementById("loadButton").addEventListener("click", loadMatches);
-
-    function addPopup(message) {
-      const container = document.getElementById("popup-container");
-      const popup = document.createElement("div");
-      popup.className = "popup";
-      popup.innerHTML = '<span>' + message + '</span><button onclick="this.parentElement.remove()">Dismiss</button>';
-      container.appendChild(popup);
-      if (container.children.length > 5) container.firstChild.remove();
-    }
 
     function addSummary(message) {
       const container = document.getElementById("summary-container");
@@ -186,6 +165,12 @@
       box.className = "summary-box";
       box.textContent = message;
       container.appendChild(box);
+    }
+
+    function toOrdinal(n) {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
     }
 
     async function fetchJSON(url) {
@@ -205,6 +190,7 @@
         const opr = stats?.tot?.value ?? 0;
         const auto = stats?.auto?.value ?? 0;
         teamCache[teamNumber] = { name, opr, auto };
+        teamNames[teamNumber] = name;
         return { name, opr, auto };
       } catch {
         teamCache[teamNumber] = { name: "Unknown", opr: 0, auto: 0 };
@@ -212,131 +198,120 @@
       }
     }
 
-    function trackTeamMatchResult(teamNumber, isWin, isTie, score, allianceAutoTotal, isPlayoff) {
-      if (!matchResults[teamNumber]) {
-        matchResults[teamNumber] = { wins: 0, losses: 0, ties: 0, highScore: 0 };
-        teamScores[teamNumber] = { autoAllianceTotals: [] };
+    function trackTeam(team, isWin, isTie, score, autoAllianceTotal, isPlayoff) {
+      if (!matchResults[team]) {
+        matchResults[team] = { wins: 0, losses: 0, ties: 0, highScore: 0 };
+        teamScores[team] = { autoAllianceTotals: [] };
       }
       if (!isPlayoff) {
-        if (isTie) matchResults[teamNumber].ties += 1;
-        else if (isWin) matchResults[teamNumber].wins += 1;
-        else matchResults[teamNumber].losses += 1;
-        teamScores[teamNumber].autoAllianceTotals.push(allianceAutoTotal);
+        if (isTie) matchResults[team].ties++;
+        else if (isWin) matchResults[team].wins++;
+        else matchResults[team].losses++;
+        teamScores[team].autoAllianceTotals.push(autoAllianceTotal);
       }
-      if (score > matchResults[teamNumber].highScore) {
-        matchResults[teamNumber].highScore = score;
-      }
+      if (score > matchResults[team].highScore)
+        matchResults[team].highScore = score;
     }
 
-    function formatMatchNumber(matchNumber) {
-      if (matchNumber > 20000) {
-        const playoffMatch = matchNumber - 20000;
-        const round = Math.floor(playoffMatch / 100);
-        const subMatch = playoffMatch % 100;
-        return `M-${round + (subMatch > 0 ? '.' + subMatch : '')}`;
+    function formatMatchNumber(num) {
+      if (num > 20000) {
+        const playoff = num - 20000;
+        const round = Math.floor(playoff / 100);
+        const sub = playoff % 100;
+        return `M-${round + (sub > 0 ? '.' + sub : '')}`;
       }
-      return `Q-${matchNumber}`;
-    }
-
-    function toOrdinal(n) {
-      const s = ["th", "st", "nd", "rd"];
-      const v = n % 100;
-      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+      return `Q-${num}`;
     }
 
     async function loadMatches() {
       const code = document.getElementById("eventCode").value.trim();
       const highlightTeam = parseInt(document.getElementById("highlightTeam").value.trim());
-      if (!code) return addPopup("Please enter an event code.");
-
       const tbody = document.querySelector("#matches tbody");
-      tbody.innerHTML = "";
-      document.getElementById("summary-container").innerHTML = "";
+      const summaryBox = document.getElementById("summary-container");
       document.getElementById("loading").textContent = "Loading...";
-      Object.keys(matchResults).forEach(k => delete matchResults[k]);
+      tbody.innerHTML = "";
+      summaryBox.innerHTML = "";
       Object.keys(teamCache).forEach(k => delete teamCache[k]);
+      Object.keys(matchResults).forEach(k => delete matchResults[k]);
       Object.keys(teamScores).forEach(k => delete teamScores[k]);
+      teamNames = {};
 
       try {
-        const matches = await fetchJSON("https://api.ftcscout.org/rest/v1/events/2024/" + code + "/matches");
-        if (!matches.length) {
-          document.getElementById("loading").textContent = "";
-          return addPopup("No matches found.");
-        }
+        const matches = await fetchJSON(`https://api.ftcscout.org/rest/v1/events/2024/${code}/matches`);
+        if (!matches.length) return addSummary("No matches found.");
+
+        let highestScore = 0, highTeams = [];
 
         for (const match of matches) {
-          const matchNumber = match.id || match.matchNumber;
+          const num = match.id || match.matchNumber;
+          const isPlayoff = num > 20000;
           const teams = match.teams || [];
 
-          const redTeams = teams.filter(t => t.alliance === "Red");
-          const blueTeams = teams.filter(t => t.alliance === "Blue");
+          const red = teams.filter(t => t.alliance === "Red");
+          const blue = teams.filter(t => t.alliance === "Blue");
 
-          const redData = await Promise.all(redTeams.map(t => getTeamData(t.teamNumber)));
-          const blueData = await Promise.all(blueTeams.map(t => getTeamData(t.teamNumber)));
+          const redData = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
+          const blueData = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
 
-          const redScore = Math.round(redData.reduce((sum, t) => sum + t.opr, 0));
-          const blueScore = Math.round(blueData.reduce((sum, t) => sum + t.opr, 0));
-          const redAutoTotal = Math.round(redData.reduce((sum, t) => sum + t.auto, 0));
-          const blueAutoTotal = Math.round(blueData.reduce((sum, t) => sum + t.auto, 0));
+          const redOPR = Math.round(redData.reduce((a, b) => a + b.opr, 0));
+          const blueOPR = Math.round(blueData.reduce((a, b) => a + b.opr, 0));
+          const redAuto = Math.round(redData.reduce((a, b) => a + b.auto, 0));
+          const blueAuto = Math.round(blueData.reduce((a, b) => a + b.auto, 0));
 
-          const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
-          const isPlayoff = matchNumber > 20000;
+          const winner = redOPR > blueOPR ? "Red" : blueOPR > redOPR ? "Blue" : "Tie";
 
-          redTeams.forEach(t => trackTeamMatchResult(t.teamNumber, winner === "Red", winner === "Tie", redScore, redAutoTotal, isPlayoff));
-          blueTeams.forEach(t => trackTeamMatchResult(t.teamNumber, winner === "Blue", winner === "Tie", blueScore, blueAutoTotal, isPlayoff));
+          red.forEach(t => trackTeam(t.teamNumber, winner === "Red", winner === "Tie", redOPR, redAuto, isPlayoff));
+          blue.forEach(t => trackTeam(t.teamNumber, winner === "Blue", winner === "Tie", blueOPR, blueAuto, isPlayoff));
+
+          if (Math.max(redOPR, blueOPR) > highestScore) {
+            highestScore = Math.max(redOPR, blueOPR);
+            highTeams = redOPR > blueOPR ? red : blue;
+          }
 
           const row = document.createElement("tr");
           row.innerHTML = `
-            <td>${formatMatchNumber(matchNumber)}</td>
-            <td class="${highlightTeam === redTeams[0]?.teamNumber ? 'highlighted red-team' : 'red-team'} ${winner === 'Red' ? 'winner' : ''}">
-              ${redTeams[0]?.teamNumber ?? ''} - ${redData[0]?.name ?? ''}
-            </td>
-            <td class="${highlightTeam === redTeams[1]?.teamNumber ? 'highlighted red-team' : 'red-team'} ${winner === 'Red' ? 'winner' : ''}">
-              ${redTeams[1]?.teamNumber ?? ''} - ${redData[1]?.name ?? ''}
-            </td>
-            <td class="red-score ${winner === 'Red' ? 'winner' : ''}">${redScore}</td>
-            <td style="color: ${winner === 'Red' ? '#ff4d4d' : winner === 'Blue' ? '#4d94ff' : '#ccc'}">${winner}</td>
-            <td class="blue-score ${winner === 'Blue' ? 'winner' : ''}">${blueScore}</td>
-            <td class="${highlightTeam === blueTeams[0]?.teamNumber ? 'highlighted blue-team' : 'blue-team'} ${winner === 'Blue' ? 'winner' : ''}">
-              ${blueTeams[0]?.teamNumber ?? ''} - ${blueData[0]?.name ?? ''}
-            </td>
-            <td class="${highlightTeam === blueTeams[1]?.teamNumber ? 'highlighted blue-team' : 'blue-team'} ${winner === 'Blue' ? 'winner' : ''}">
-              ${blueTeams[1]?.teamNumber ?? ''} - ${blueData[1]?.name ?? ''}
-            </td>
+            <td>${formatMatchNumber(num)}</td>
+            <td class="${highlightTeam === red[0].teamNumber ? 'highlighted red-team' : 'red-team'}">${red[0].teamNumber} - ${redData[0].name}</td>
+            <td class="${highlightTeam === red[1].teamNumber ? 'highlighted red-team' : 'red-team'}">${red[1].teamNumber} - ${redData[1].name}</td>
+            <td>${redOPR}</td>
+            <td style="color:${winner === 'Red' ? 'var(--accent-red)' : winner === 'Blue' ? 'var(--accent-blue)' : '#ccc'}">${winner}</td>
+            <td>${blueOPR}</td>
+            <td class="${highlightTeam === blue[0].teamNumber ? 'highlighted blue-team' : 'blue-team'}">${blue[0].teamNumber} - ${blueData[0].name}</td>
+            <td class="${highlightTeam === blue[1].teamNumber ? 'highlighted blue-team' : 'blue-team'}">${blue[1].teamNumber} - ${blueData[1].name}</td>
           `;
           tbody.appendChild(row);
         }
 
-        const rankedTeams = Object.entries(matchResults).map(([team, record]) => {
-          const autoAllianceTotals = teamScores[team]?.autoAllianceTotals || [];
-          const tbp = autoAllianceTotals.length ? autoAllianceTotals.reduce((a, b) => a + b, 0) / autoAllianceTotals.length : 0;
-          const rp = ((2 * record.wins + record.ties) / (record.wins + record.losses + record.ties)) || 0;
-          return {
-            team: parseInt(team),
-            rp: Math.round(rp * 100) / 100,
-            tbp: Math.round(tbp * 100) / 100,
-            ...record
-          };
-        });
+        // Rankings
+        const ranks = Object.entries(matchResults).map(([team, r]) => {
+          const autoTotals = teamScores[team]?.autoAllianceTotals ?? [];
+          const tbp = autoTotals.length ? autoTotals.reduce((a, b) => a + b, 0) / autoTotals.length : 0;
+          const rp = ((2 * r.wins + r.ties) / (r.wins + r.losses + r.ties)) || 0;
+          return { team: +team, name: teamNames[team], rp: +rp.toFixed(2), tbp: +tbp.toFixed(2), ...r };
+        }).sort((a, b) => b.rp - a.rp || b.tbp - a.tbp || b.highScore - a.highScore);
 
-        rankedTeams.sort((a, b) => b.rp - a.rp || b.tbp - a.tbp || b.highScore - a.highScore);
-
-        for (let i = 0; i < Math.min(1, rankedTeams.length); i++) {
-          const t = rankedTeams[i];
-          addSummary(`Predicted 1st Place: #${t.team} - RP: ${t.rp.toFixed(2)} (TBP: ${t.tbp.toFixed(2)}, W-L-T: ${t.wins}-${t.losses}-${t.ties}, High Score: ${t.highScore})`);
+        // Predicted high score teams
+        if (highTeams.length === 2) {
+          const names = highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ");
+          addSummary(`Predicted High Score: ${highestScore} (${names})`);
         }
 
+        // Top team
+        const top = ranks[0];
+        addSummary(`Predicted 1st Place: Team ${top.team} - ${top.name} (RP: ${top.rp}, TBP: ${top.tbp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.highScore})`);
+
+        // Highlighted team
         if (highlightTeam && matchResults[highlightTeam]) {
-          const place = rankedTeams.findIndex(t => t.team === highlightTeam) + 1;
-          const t = rankedTeams[place - 1];
-          addSummary(`${toOrdinal(place)} Place - Team #${highlightTeam} — RP: ${t.rp.toFixed(2)} (TBP: ${t.tbp.toFixed(2)}, W-L-T: ${t.wins}-${t.losses}-${t.ties}, High Score: ${t.highScore})`);
+          const index = ranks.findIndex(t => t.team === highlightTeam);
+          const t = ranks[index];
+          addSummary(`Predicted ${toOrdinal(index + 1)} Place: Team ${t.team} - ${t.name} (RP: ${t.rp}, TBP: ${t.tbp}, W-L-T: ${t.wins}-${t.losses}-${t.ties}, High Score: ${t.highScore})`);
         }
 
         document.getElementById("loading").textContent = "";
 
       } catch (err) {
         document.getElementById("loading").textContent = "";
-        addPopup("Failed to load data: " + err.message);
+        addSummary("Failed to load data: " + err.message);
       }
     }
   </script>
