@@ -114,6 +114,10 @@
       text-align: center;
     }
 
+    .spacer {
+      height: 16px;
+    }
+
     #footer {
       margin-top: 40px;
       font-size: 12px;
@@ -140,6 +144,7 @@
   </div>
 
   <div id="summary-container"></div>
+  <div class="spacer"></div>
   <div id="loading"></div>
 
   <table id="matches">
@@ -174,6 +179,12 @@
       box.className = "summary-box";
       box.textContent = message;
       container.appendChild(box);
+    }
+
+    function addSpacer() {
+      const container = document.getElementById("summary-container");
+      const spacer = document.createElement("br");
+      container.appendChild(spacer);
     }
 
     function toOrdinal(n) {
@@ -319,7 +330,7 @@
           tbody.appendChild(row);
         }
 
-        const avgMatchScore = (totalMatchScore / matchCount).toFixed(1);
+        const avgMatchScore = (totalMatchScore / matchCount).toFixed(2);
 
         if (highTeams.length === 2) {
           const names = highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ");
@@ -327,13 +338,19 @@
         }
 
         addSummary(`Average Match Score: ${avgMatchScore}`);
-        addSummary(`<br>`); // spacing
+        addSpacer();
 
         const ranks = Object.entries(matchResults).map(([team, r]) => {
           const autoTotals = teamScores[team]?.autoAllianceTotals ?? [];
           const tbp = autoTotals.length ? autoTotals.reduce((a, b) => a + b, 0) / autoTotals.length : 0;
           const rp = ((2 * r.wins + r.ties) / (r.wins + r.losses + r.ties)) || 0;
-          return { team: +team, name: teamNames[team], rp: +rp.toFixed(2), tbp: +tbp.toFixed(2), ...r };
+          return {
+            team: +team,
+            name: teamNames[team],
+            rp: rp.toFixed(2),
+            tbp: tbp.toFixed(2),
+            ...r
+          };
         }).sort((a, b) => b.rp - a.rp || b.tbp - a.tbp || b.highScore - a.highScore);
 
         const top = ranks[0];
