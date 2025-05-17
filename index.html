@@ -2,142 +2,131 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match Scoring Predictions</title>
+  <title>FTC OPR Match Viewer</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
-    * { box-sizing: border-box; }
     body {
-      background-color: #121212;
-      color: #e0e0e0;
       font-family: 'Inter', sans-serif;
-      text-align: center;
+      background-color: #f9f9f9;
+      color: #333;
       padding: 20px;
+      line-height: 1.6;
     }
-    h1 { font-size: 32px; margin-bottom: 10px; }
-    .info { font-size: 16px; color: #bbb; margin-bottom: 20px; }
-    input {
-      padding: 12px;
-      width: 220px;
-      background-color: #1e1e1e;
-      border: 1px solid #444;
-      color: white;
-      border-radius: 8px;
-      text-align: center;
-      margin: 5px;
-      font-size: 16px;
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 10px;
     }
+
+    .info {
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    input, button {
+      padding: 8px 12px;
+      margin-right: 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
     button {
-      padding: 12px 18px;
-      background-color: #6200ee;
-      border: none;
+      background-color: #007bff;
       color: white;
-      border-radius: 8px;
+      border: none;
       cursor: pointer;
-      font-size: 16px;
     }
-    .summary-box {
-      background-color: #2b2b2b;
-      padding: 12px 20px;
-      border-radius: 10px;
-      margin: 15px auto;
-      width: fit-content;
-      font-size: 16px;
-      color: #ddd;
+
+    button:hover {
+      background-color: #0056b3;
     }
+
     table {
       width: 100%;
-      margin: 20px auto;
       border-collapse: collapse;
-      background-color: #1e1e1e;
-      border-radius: 12px;
-      overflow: hidden;
-      table-layout: fixed;
+      margin-top: 20px;
+      background-color: white;
+      border: 1px solid #ddd;
     }
+
     th, td {
       padding: 10px;
-      border: 1px solid #333;
       text-align: center;
-      font-size: 16px;
-      word-wrap: break-word;
+      border: 1px solid #ddd;
+      font-size: 13px;
     }
+
     th {
-      background-color: #292929;
+      background-color: #f2f2f2;
       font-weight: 600;
     }
-    table col:nth-child(1) { width: 10%; }
-    table col:nth-child(2), table col:nth-child(3),
-    table col:nth-child(7), table col:nth-child(8) { width: 13%; }
-    table col:nth-child(4), table col:nth-child(6) { width: 10%; }
-    table col:nth-child(5) { width: 14%; }
 
     .red-team {
-      background-color: #4d0000;
-      color: white;
-    }
-    .blue-team {
-      background-color: #00004d;
-      color: white;
-    }
-    .highlighted.red-team {
-      background-color: #AF1D1D !important;
-      color: black !important;
-      font-weight: bold;
-    }
-    .highlighted.blue-team {
-      background-color: #1B57B3 !important;
-      color: black !important;
-      font-weight: bold;
-    }
-    .red-score {
       color: #ff4d4d;
-      font-weight: bold;
     }
-    .blue-score {
+
+    .blue-team {
       color: #4d94ff;
-      font-weight: bold;
     }
+
     .winner {
       font-weight: bold;
     }
-    #loading {
-      color: #bb86fc;
-      margin-top: 10px;
-      font-weight: bold;
+
+    .highlighted {
+      background-color: #ffffcc;
     }
+
+    .summary-box {
+      background-color: #e6f7ff;
+      border: 1px solid #91d5ff;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    #footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #aaa;
+      text-align: center;
+    }
+
     .popup-container {
       position: fixed;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      z-index: 9999;
+      right: 20px;
+      max-width: 300px;
+      z-index: 1000;
     }
+
     .popup {
-      background-color: #1e1e1e;
-      color: white;
-      padding: 10px 20px;
-      border: 1px solid #bb86fc;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      min-width: 320px;
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+      font-size: 13px;
     }
+
     .popup button {
-      background-color: #bb86fc;
+      margin-top: 5px;
+      background: #ffc107;
       border: none;
-      border-radius: 5px;
-      color: black;
-      font-weight: bold;
       padding: 5px 10px;
+      font-size: 12px;
+      border-radius: 4px;
       cursor: pointer;
     }
-    #footer {
-      margin-top: 30px;
+
+    #loading {
       font-size: 14px;
+      margin-top: 10px;
       color: #888;
     }
   </style>
@@ -178,7 +167,7 @@
   <script>
     const teamCache = {};
     const matchResults = {};
-    const teamScores = {}; // For tracking auto scores (TBP)
+    const teamScores = {}; // For tracking TBP as avg total alliance auto
 
     document.getElementById("loadButton").addEventListener("click", loadMatches);
 
@@ -223,16 +212,16 @@
       }
     }
 
-    function trackTeamMatchResult(teamNumber, isWin, isTie, score, autoScore, isPlayoff) {
+    function trackTeamMatchResult(teamNumber, isWin, isTie, score, allianceAutoTotal, isPlayoff) {
       if (!matchResults[teamNumber]) {
         matchResults[teamNumber] = { wins: 0, losses: 0, ties: 0, highScore: 0 };
-        teamScores[teamNumber] = { autoScores: [] };
+        teamScores[teamNumber] = { autoAllianceTotals: [] };
       }
       if (!isPlayoff) {
         if (isTie) matchResults[teamNumber].ties += 1;
         else if (isWin) matchResults[teamNumber].wins += 1;
         else matchResults[teamNumber].losses += 1;
-        teamScores[teamNumber].autoScores.push(autoScore);
+        teamScores[teamNumber].autoAllianceTotals.push(allianceAutoTotal);
       }
       if (score > matchResults[teamNumber].highScore) {
         matchResults[teamNumber].highScore = score;
@@ -287,13 +276,14 @@
 
           const redScore = Math.round(redData.reduce((sum, t) => sum + t.opr, 0));
           const blueScore = Math.round(blueData.reduce((sum, t) => sum + t.opr, 0));
-          const redAuto = redData.reduce((sum, t) => sum + t.auto, 0);
-          const blueAuto = blueData.reduce((sum, t) => sum + t.auto, 0);
+          const redAutoTotal = Math.round(redData.reduce((sum, t) => sum + t.auto, 0));
+          const blueAutoTotal = Math.round(blueData.reduce((sum, t) => sum + t.auto, 0));
+
           const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
           const isPlayoff = matchNumber > 20000;
 
-          redTeams.forEach((t, i) => trackTeamMatchResult(t.teamNumber, winner === "Red", winner === "Tie", redScore, redData[i].auto, isPlayoff));
-          blueTeams.forEach((t, i) => trackTeamMatchResult(t.teamNumber, winner === "Blue", winner === "Tie", blueScore, blueData[i].auto, isPlayoff));
+          redTeams.forEach(t => trackTeamMatchResult(t.teamNumber, winner === "Red", winner === "Tie", redScore, redAutoTotal, isPlayoff));
+          blueTeams.forEach(t => trackTeamMatchResult(t.teamNumber, winner === "Blue", winner === "Tie", blueScore, blueAutoTotal, isPlayoff));
 
           const row = document.createElement("tr");
           row.innerHTML = `
@@ -318,8 +308,8 @@
         }
 
         const rankedTeams = Object.entries(matchResults).map(([team, record]) => {
-          const scores = teamScores[team]?.autoScores || [];
-          const tbp = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+          const autoAllianceTotals = teamScores[team]?.autoAllianceTotals || [];
+          const tbp = autoAllianceTotals.length ? autoAllianceTotals.reduce((a, b) => a + b, 0) / autoAllianceTotals.length : 0;
           const rp = ((2 * record.wins + record.ties) / (record.wins + record.losses + record.ties)) || 0;
           return {
             team: parseInt(team),
@@ -350,6 +340,5 @@
       }
     }
   </script>
-
 </body>
 </html>
