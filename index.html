@@ -328,12 +328,12 @@
         }
 
         const top = ranks[0];
-        addSummary(`Predicted 1st Place: Team ${top.team} - ${top.name} (RP: ${top.rp}, TBP: ${top.tbp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.highScore})`);
+        addSummary(`Predicted 1st Place: ${top.team} - ${top.name} (RP: ${top.rp}, TBP: ${top.tbp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.highScore})`);
 
         if (highlightTeam && matchResults[highlightTeam]) {
           const index = ranks.findIndex(t => t.team === highlightTeam);
           const t = ranks[index];
-          addSummary(`Predicted ${toOrdinal(index + 1)} Place: Team ${t.team} - ${t.name} (RP: ${t.rp}, TBP: ${t.tbp}, W-L-T: ${t.wins}-${t.losses}-${t.ties}, High Score: ${t.highScore})`);
+          addSummary(`Predicted ${toOrdinal(index + 1)} Place: ${t.team} - ${t.name} (RP: ${t.rp}, TBP: ${t.tbp}, W-L-T: ${t.wins}-${t.losses}-${t.ties}, High Score: ${t.highScore})`);
         }
 
         loadingMsg.textContent = "";
