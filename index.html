@@ -90,16 +90,16 @@
       color: var(--accent-blue);
     }
 
-    .highlighted {
+    .highlighted.red-team {
+      background-color: var(--accent-red);
+      color: #ffffff;
       font-weight: bold;
     }
 
-    .highlighted.red-team {
-      color: var(--accent-red);
-    }
-
     .highlighted.blue-team {
-      color: var(--accent-blue);
+      background-color: var(--accent-blue);
+      color: #ffffff;
+      font-weight: bold;
     }
 
     .summary-box {
@@ -299,15 +299,18 @@
           else if (winner === "Blue") winnerColor = "var(--accent-blue)";
           else if (winner === "Tie") winnerColor = "var(--accent-purple)";
 
+          const highlightClass = (team, color) =>
+            team === highlightTeam ? `highlighted ${color}-team` : `${color}-team`;
+
           row.innerHTML = `
             <td>${formatMatchNumber(num)}</td>
-            <td class="red-team ${highlightTeam === redT1 ? 'highlighted' : ''}">${redT1} - ${redData[0].name}</td>
-            <td class="red-team ${highlightTeam === redT2 ? 'highlighted' : ''}">${redT2} - ${redData[1].name}</td>
+            <td class="${highlightClass(redT1, 'red')}">${redT1} - ${redData[0].name}</td>
+            <td class="${highlightClass(redT2, 'red')}">${redT2} - ${redData[1].name}</td>
             <td class="red-team">${redOPR}</td>
             <td style="color:${winnerColor}">${winner}</td>
             <td class="blue-team">${blueOPR}</td>
-            <td class="blue-team ${highlightTeam === blueT1 ? 'highlighted' : ''}">${blueT1} - ${blueData[0].name}</td>
-            <td class="blue-team ${highlightTeam === blueT2 ? 'highlighted' : ''}">${blueT2} - ${blueData[1].name}</td>
+            <td class="${highlightClass(blueT1, 'blue')}">${blueT1} - ${blueData[0].name}</td>
+            <td class="${highlightClass(blueT2, 'blue')}">${blueT2} - ${blueData[1].name}</td>
           `;
           tbody.appendChild(row);
         }
