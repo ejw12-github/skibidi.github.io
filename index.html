@@ -272,8 +272,8 @@
           const isPlayoff = num > 20000;
           const teams = match.teams || [];
 
-          const red = teams.filter(t => t.alliance === "Red");
-          const blue = teams.filter(t => t.alliance === "Blue");
+          const red = teams.filter(t => t.alliance === "Red" && t.station !== "NotOnField");
+          const blue = teams.filter(t => t.alliance === "Blue" && t.station !== "NotOnField");
 
           const redData = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
           const blueData = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
@@ -299,10 +299,10 @@
 
           const row = document.createElement("tr");
 
-          const redT1 = red[0].teamNumber;
-          const redT2 = red[1].teamNumber;
-          const blueT1 = blue[0].teamNumber;
-          const blueT2 = blue[1].teamNumber;
+          const redT1 = red[0]?.teamNumber ?? "";
+          const redT2 = red[1]?.teamNumber ?? "";
+          const blueT1 = blue[0]?.teamNumber ?? "";
+          const blueT2 = blue[1]?.teamNumber ?? "";
 
           let winnerColor = "#ccc";
           if (winner === "Red") winnerColor = "var(--accent-red)";
@@ -314,13 +314,13 @@
 
           row.innerHTML = `
             <td>${formatMatchNumber(num)}</td>
-            <td class="${highlightClass(redT1, 'red')}">${redT1} - ${redData[0].name}</td>
-            <td class="${highlightClass(redT2, 'red')}">${redT2} - ${redData[1].name}</td>
+            <td class="${highlightClass(redT1, 'red')}">${redT1 || "-"}</td>
+            <td class="${highlightClass(redT2, 'red')}">${redT2 || "-"}</td>
             <td class="red-team">${redOPR}</td>
             <td style="color:${winnerColor}">${winner}</td>
             <td class="blue-team">${blueOPR}</td>
-            <td class="${highlightClass(blueT1, 'blue')}">${blueT1} - ${blueData[0].name}</td>
-            <td class="${highlightClass(blueT2, 'blue')}">${blueT2} - ${blueData[1].name}</td>
+            <td class="${highlightClass(blueT1, 'blue')}">${blueT1 || "-"}</td>
+            <td class="${highlightClass(blueT2, 'blue')}">${blueT2 || "-"}</td>
           `;
           tbody.appendChild(row);
         }
