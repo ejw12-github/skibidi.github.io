@@ -114,6 +114,10 @@
       text-align: center;
     }
 
+    .spacer {
+      height: 16px;
+    }
+
     #footer {
       margin-top: 40px;
       font-size: 12px;
@@ -131,7 +135,6 @@
 <body>
 
   <h1>FTC Match Predictions</h1>
-  <div id="highScoreBox" class="summary-box">Predicted High Score: Loading...</div>
   <div id="eventTitle" class="info">Enter a valid FTCScout event code to begin.</div>
 
   <div>
@@ -141,6 +144,7 @@
   </div>
 
   <div id="summary-container"></div>
+  <div class="spacer"></div>
   <div id="loading"></div>
 
   <table id="matches">
@@ -175,6 +179,13 @@
       box.className = "summary-box";
       box.textContent = message;
       container.appendChild(box);
+    }
+
+    function addSpacer() {
+      const container = document.getElementById("summary-container");
+      const spacer = document.createElement("div");
+      spacer.className = "spacer";
+      container.appendChild(spacer);
     }
 
     function toOrdinal(n) {
@@ -241,12 +252,10 @@
       const summaryBox = document.getElementById("summary-container");
       const loadingMsg = document.getElementById("loading");
       const eventTitle = document.getElementById("eventTitle");
-      const highScoreBox = document.getElementById("highScoreBox");
 
       loadingMsg.textContent = "Loading...";
       tbody.innerHTML = "";
       summaryBox.innerHTML = "";
-      highScoreBox.textContent = "Predicted High Score: Loading...";
       Object.keys(teamCache).forEach(k => delete teamCache[k]);
       Object.keys(matchResults).forEach(k => delete matchResults[k]);
       Object.keys(teamScores).forEach(k => delete teamScores[k]);
@@ -276,27 +285,26 @@
           const redData = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
           const blueData = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
 
-          const redOPR = redData.reduce((a, b) => a + (b.opr ?? 0), 0);
-          const blueOPR = blueData.reduce((a, b) => a + (b.opr ?? 0), 0);
-
-          const redAuto = redData.reduce((a, b) => a + (b.auto ?? 0), 0);
-          const blueAuto = blueData.reduce((a, b) => a + (b.auto ?? 0), 0);
+          const redOPR = +(redData.reduce((a, b) => a + (b.opr ?? 0), 0)).toFixed(2);
+          const blueOPR = +(blueData.reduce((a, b) => a + (b.opr ?? 0), 0)).toFixed(2);
+          const redAuto = Math.round(redData.reduce((a, b) => a + (b.auto ?? 0), 0));
+          const blueAuto = Math.round(blueData.reduce((a, b) => a + (b.auto ?? 0), 0));
 
           const winner = redOPR > blueOPR ? "Red" : blueOPR > redOPR ? "Blue" : "Tie";
 
           red.forEach(t => trackTeam(t.teamNumber, winner === "Red", winner === "Tie", redOPR, redAuto, isPlayoff));
           blue.forEach(t => trackTeam(t.teamNumber, winner === "Blue", winner === "Tie", blueOPR, blueAuto, isPlayoff));
 
-          if (Math.max(redOPR, blueOPR) > highestScore) {
-            highestScore = Math.max(redOPR, blueOPR);
-            highTeams = redOPR > blueOPR ? red : blue;
+          const currentHigh = Math.max(redOPR, blueOPR);
+          if (currentHigh > highestScore) {
+            highestScore = currentHigh;
+            highTeams = redOPR > blueOPR ? red.map(t => t.teamNumber) : blue.map(t => t.teamNumber);
           }
 
           totalAverageMatchScore += (redOPR + blueOPR) / 2;
           matchCount++;
 
           const row = document.createElement("tr");
-
           const redT1 = red[0].teamNumber;
           const redT2 = red[1].teamNumber;
           const blueT1 = blue[0].teamNumber;
@@ -323,12 +331,15 @@
           tbody.appendChild(row);
         }
 
+        // Ensure high score always shows after processing
+        if (highTeams.length === 2) {
+          const names = highTeams.map(t => `${t} - ${teamNames[t] || 'Unknown'}`).join(" and ");
+          addSummary(`Predicted High Score: ${highestScore} (${names})`);
+        }
+
         const avgMatchScore = (totalAverageMatchScore / matchCount).toFixed(2);
-
-        const names = highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ");
-        highScoreBox.textContent = `Predicted High Score: ${highestScore.toFixed(2)} (${names})`;
-
         addSummary(`Predicted Average Match Score: ${avgMatchScore}`);
+        addSpacer();
 
         const ranks = Object.entries(matchResults).map(([team, r]) => {
           const autoTotals = teamScores[team]?.autoAllianceTotals ?? [];
@@ -356,7 +367,6 @@
 
       } catch (err) {
         loadingMsg.textContent = "";
-        highScoreBox.textContent = "Predicted High Score: Failed to load.";
         addSummary("Failed to load data: " + err.message);
       }
     }
