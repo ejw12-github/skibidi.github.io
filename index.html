@@ -114,10 +114,6 @@
       text-align: center;
     }
 
-    .spacer {
-      height: 16px;
-    }
-
     #footer {
       margin-top: 40px;
       font-size: 12px;
@@ -144,7 +140,6 @@
   </div>
 
   <div id="summary-container"></div>
-  <div class="spacer"></div>
   <div id="loading"></div>
 
   <table id="matches">
@@ -183,8 +178,7 @@
 
     function addSpacer() {
       const container = document.getElementById("summary-container");
-      const spacer = document.createElement("div");
-      spacer.className = "spacer";
+      const spacer = document.createElement("br");
       container.appendChild(spacer);
     }
 
@@ -208,14 +202,14 @@
           fetchJSON("https://api.ftcscout.org/rest/v1/teams/" + teamNumber + "/quick-stats?season=2024")
         ]);
         const name = info.name || "Unknown";
-        const opr = stats?.tot?.value ?? null;
+        const opr = stats?.tot?.value ?? 0;
         const auto = stats?.auto?.value ?? 0;
         teamCache[teamNumber] = { name, opr, auto };
         teamNames[teamNumber] = name;
         return { name, opr, auto };
       } catch {
-        teamCache[teamNumber] = { name: "Unknown", opr: null, auto: 0 };
-        return { name: "Unknown", opr: null, auto: 0 };
+        teamCache[teamNumber] = { name: "Unknown", opr: 0, auto: 0 };
+        return { name: "Unknown", opr: 0, auto: 0 };
       }
     }
 
@@ -239,8 +233,7 @@
         const playoff = num - 20000;
         const round = Math.floor(playoff / 1000);
         const sub = playoff % 100;
-        if (sub === 1) return `M-${round}`;
-        return `M-${round}.${sub}`;
+        return sub === 1 ? `M-${round}` : `M-${round}.${sub}`;
       }
       return `Q-${num}`;
     }
@@ -285,26 +278,27 @@
           const redData = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
           const blueData = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
 
-          const redOPR = +(redData.reduce((a, b) => a + (b.opr ?? 0), 0)).toFixed(2);
-          const blueOPR = +(blueData.reduce((a, b) => a + (b.opr ?? 0), 0)).toFixed(2);
-          const redAuto = Math.round(redData.reduce((a, b) => a + (b.auto ?? 0), 0));
-          const blueAuto = Math.round(blueData.reduce((a, b) => a + (b.auto ?? 0), 0));
+          const redOPR = Math.round(redData.reduce((a, b) => a + (b.opr || 0), 0));
+          const blueOPR = Math.round(blueData.reduce((a, b) => a + (b.opr || 0), 0));
+
+          const redAuto = Math.round(redData.reduce((a, b) => a + (b.auto || 0), 0));
+          const blueAuto = Math.round(blueData.reduce((a, b) => a + (b.auto || 0), 0));
 
           const winner = redOPR > blueOPR ? "Red" : blueOPR > redOPR ? "Blue" : "Tie";
 
           red.forEach(t => trackTeam(t.teamNumber, winner === "Red", winner === "Tie", redOPR, redAuto, isPlayoff));
           blue.forEach(t => trackTeam(t.teamNumber, winner === "Blue", winner === "Tie", blueOPR, blueAuto, isPlayoff));
 
-          const currentHigh = Math.max(redOPR, blueOPR);
-          if (currentHigh > highestScore) {
-            highestScore = currentHigh;
-            highTeams = redOPR > blueOPR ? red.map(t => t.teamNumber) : blue.map(t => t.teamNumber);
+          if (Math.max(redOPR, blueOPR) > highestScore) {
+            highestScore = Math.max(redOPR, blueOPR);
+            highTeams = redOPR > blueOPR ? red : blue;
           }
 
           totalAverageMatchScore += (redOPR + blueOPR) / 2;
           matchCount++;
 
           const row = document.createElement("tr");
+
           const redT1 = red[0].teamNumber;
           const redT2 = red[1].teamNumber;
           const blueT1 = blue[0].teamNumber;
@@ -322,22 +316,24 @@
             <td>${formatMatchNumber(num)}</td>
             <td class="${highlightClass(redT1, 'red')}">${redT1} - ${redData[0].name}</td>
             <td class="${highlightClass(redT2, 'red')}">${redT2} - ${redData[1].name}</td>
-            <td class="red-team">${redOPR.toFixed(2)}</td>
+            <td class="red-team">${redOPR}</td>
             <td style="color:${winnerColor}">${winner}</td>
-            <td class="blue-team">${blueOPR.toFixed(2)}</td>
+            <td class="blue-team">${blueOPR}</td>
             <td class="${highlightClass(blueT1, 'blue')}">${blueT1} - ${blueData[0].name}</td>
             <td class="${highlightClass(blueT2, 'blue')}">${blueT2} - ${blueData[1].name}</td>
           `;
           tbody.appendChild(row);
         }
 
-        // Ensure high score always shows after processing
-        if (highTeams.length === 2) {
-          const names = highTeams.map(t => `${t} - ${teamNames[t] || 'Unknown'}`).join(" and ");
-          addSummary(`Predicted High Score: ${highestScore} (${names})`);
+        const avgMatchScore = matchCount ? (totalAverageMatchScore / matchCount).toFixed(2) : "0.00";
+
+        if (highTeams.length === 2 || highestScore >= 0) {
+          const names = highTeams.length
+            ? highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ")
+            : "N/A";
+          addSummary(`Predicted High Score: ${highestScore}${names !== "N/A" ? ` (${names})` : ""}`);
         }
 
-        const avgMatchScore = (totalAverageMatchScore / matchCount).toFixed(2);
         addSummary(`Predicted Average Match Score: ${avgMatchScore}`);
         addSpacer();
 
@@ -355,7 +351,7 @@
         }).sort((a, b) => b.rp - a.rp || b.tbp - a.tbp || b.highScore - a.highScore);
 
         const top = ranks[0];
-        addSummary(`Predicted 1st Place: ${top.team} - ${top.name} (RP: ${top.rp}, TBP: ${top.tbp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.highScore})`);
+        if (top) addSummary(`Predicted 1st Place: ${top.team} - ${top.name} (RP: ${top.rp}, TBP: ${top.tbp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.highScore})`);
 
         if (highlightTeam && matchResults[highlightTeam]) {
           const index = ranks.findIndex(t => t.team === highlightTeam);
@@ -364,7 +360,6 @@
         }
 
         loadingMsg.textContent = "";
-
       } catch (err) {
         loadingMsg.textContent = "";
         addSummary("Failed to load data: " + err.message);
