@@ -272,7 +272,6 @@
           const isPlayoff = num > 20000;
           const teams = match.teams || [];
 
-          // Filter out teams where station is NotOnField
           const red = teams.filter(t => t.alliance === "Red" && t.station !== "NotOnField");
           const blue = teams.filter(t => t.alliance === "Blue" && t.station !== "NotOnField");
 
@@ -285,82 +284,86 @@
           const redAuto = Math.round(redData.reduce((a, b) => a + (b.auto || 0), 0));
           const blueAuto = Math.round(blueData.reduce((a, b) => a + (b.auto || 0), 0));
 
-          const winner = redOPR > blueOPR ? "Red" : blueOPR > redOPR ? "Blue" : "Tie";
+          const redScore = match.allianceScores?.Red ?? 0;
+          const blueScore = match.allianceScores?.Blue ?? 0;
 
-          red.forEach(t => trackTeam(t.teamNumber, winner === "Red", winner === "Tie", redOPR, redAuto, isPlayoff));
-          blue.forEach(t => trackTeam(t.teamNumber, winner === "Blue", winner === "Tie", blueOPR, blueAuto, isPlayoff));
-
-          if (Math.max(redOPR, blueOPR) > highestScore) {
-            highestScore = Math.max(redOPR, blueOPR);
-            highTeams = redOPR > blueOPR ? red : blue;
-          }
-
-          totalAverageMatchScore += (redOPR + blueOPR) / 2;
+          totalAverageMatchScore += redScore + blueScore;
           matchCount++;
 
+          const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
+
+          // Track teams results and stats
+          red.forEach(t => trackTeam(t.teamNumber, winner === "Red", winner === "Tie", redScore, redAuto, isPlayoff));
+          blue.forEach(t => trackTeam(t.teamNumber, winner === "Blue", winner === "Tie", blueScore, blueAuto, isPlayoff));
+
+          if (redScore > highestScore) {
+            highestScore = redScore;
+            highTeams = red.map(t => t.teamNumber);
+          }
+          if (blueScore > highestScore) {
+            highestScore = blueScore;
+            highTeams = blue.map(t => t.teamNumber);
+          }
+
+          // Create table row for this match:
           const row = document.createElement("tr");
 
-          const redT1 = red[0]?.teamNumber ?? "";
-          const redT2 = red[1]?.teamNumber ?? "";
-          const blueT1 = blue[0]?.teamNumber ?? "";
-          const blueT2 = blue[1]?.teamNumber ?? "";
+          // Highlight row if highlightTeam present and in this match
+          const teamsInMatch = [...red, ...blue].map(t => t.teamNumber);
+          if (highlightTeam && teamsInMatch.includes(highlightTeam)) {
+            row.classList.add("highlighted");
+            if (red.some(t => t.teamNumber === highlightTeam)) row.classList.add("red-team");
+            else if (blue.some(t => t.teamNumber === highlightTeam)) row.classList.add("blue-team");
+          }
 
-          let winnerColor = "#ccc";
-          if (winner === "Red") winnerColor = "var(--accent-red)";
-          else if (winner === "Blue") winnerColor = "var(--accent-blue)";
-          else if (winner === "Tie") winnerColor = "var(--accent-purple)";
-
-          const highlightClass = (team, color) =>
-            team === highlightTeam ? `highlighted ${color}-team` : `${color}-team`;
+          // Format team cells with name and number for Red 1/2 and Blue 1/2
+          // Use teamNames dictionary from cached data
+          // If name missing, show "Unknown"
+          const red1 = red[0]?.teamNumber || "";
+          const red2 = red[1]?.teamNumber || "";
+          const blue1 = blue[0]?.teamNumber || "";
+          const blue2 = blue[1]?.teamNumber || "";
 
           row.innerHTML = `
             <td>${formatMatchNumber(num)}</td>
-            <td class="${highlightClass(redT1, 'red')}">${redT1 ? redT1 + " - " + (teamNames[redT1] || "Unknown") : "-"}</td>
-            <td class="${highlightClass(redT2, 'red')}">${redT2 ? redT2 + " - " + (teamNames[redT2] || "Unknown") : "-"}</td>
-            <td class="red-team">${redOPR}</td>
-            <td style="color:${winnerColor}">${winner}</td>
-            <td class="blue-team">${blueOPR}</td>
-            <td class="${highlightClass(blueT1, 'blue')}">${blueT1 ? blueT1 + " - " + (teamNames[blueT1] || "Unknown") : "-"}</td>
-            <td class="${highlightClass(blueT2, 'blue')}">${blueT2 ? blueT2 + " - " + (teamNames[blueT2] || "Unknown") : "-"}</td>
+            <td class="red-team">${red1 ? `${teamNames[red1] || "Unknown"} - ${red1}` : ""}</td>
+            <td class="red-team">${red2 ? `${teamNames[red2] || "Unknown"} - ${red2}` : ""}</td>
+            <td>${redOPR}</td>
+            <td>${winner === "Tie" ? "Tie" : winner}</td>
+            <td>${blueOPR}</td>
+            <td class="blue-team">${blue1 ? `${teamNames[blue1] || "Unknown"} - ${blue1}` : ""}</td>
+            <td class="blue-team">${blue2 ? `${teamNames[blue2] || "Unknown"} - ${blue2}` : ""}</td>
           `;
+
           tbody.appendChild(row);
         }
 
-        const avgMatchScore = matchCount ? (totalAverageMatchScore / matchCount).toFixed(2) : "0.00";
+        // Add summary boxes
+        if (matchCount > 0) {
+          const avgMatchScore = (totalAverageMatchScore / matchCount).toFixed(2);
+          addSummary(`Average match score: ${avgMatchScore}`);
 
-        if (highTeams.length === 2 || highestScore >= 0) {
-          const names = highTeams.length
-            ? highTeams.map(t => `${t.teamNumber} - ${teamNames[t.teamNumber] || 'Unknown'}`).join(" and ")
-            : "N/A";
-          addSummary(`Predicted High Score: ${highestScore}${names !== "N/A" ? ` (${names})` : ""}`);
-        }
+          if (highTeams.length) {
+            addSummary(`Highest scoring alliance: Teams ${highTeams.map(t => `${teamNames[t] || t} (${t})`).join(", ")} with ${highestScore} points.`);
+          }
 
-        addSummary(`Predicted Average Match Score: ${avgMatchScore}`);
-        addSpacer();
+          addSpacer();
 
-        const ranks = Object.entries(matchResults).map(([team, r]) => {
-          const autoTotals = teamScores[team]?.autoAllianceTotals ?? [];
-          const tbp = r.wins * 2 + r.ties + autoTotals.reduce((a, b) => a + b, 0);
-          return { team, tbp, wins: r.wins, losses: r.losses, ties: r.ties, highScore: r.highScore };
-        });
-
-        ranks.sort((a, b) => b.tbp - a.tbp);
-
-        if (ranks.length > 0) {
-          addSummary("Predicted Team Ranking:");
-          ranks.slice(0, 10).forEach(({ team, tbp, wins, losses, ties, highScore }, i) => {
-            addSummary(
-              `${toOrdinal(i + 1)}: Team ${team} - ${teamNames[team] || "Unknown"} — ` +
-              `TBP: ${tbp.toFixed(1)} (W:${wins} L:${losses} T:${ties}) High Score: ${highScore}`
-            );
+          // List teams with their win/loss/tie records and highest scores
+          const teamKeys = Object.keys(matchResults).sort((a,b) => b.wins - a.wins);
+          teamKeys.forEach(team => {
+            const r = matchResults[team];
+            const avgAuto = teamScores[team].autoAllianceTotals.length
+              ? (teamScores[team].autoAllianceTotals.reduce((a,b) => a+b,0) / teamScores[team].autoAllianceTotals.length).toFixed(2)
+              : "N/A";
+            addSummary(`Team ${teamNames[team] || team} (${team}): W ${r.wins}, L ${r.losses}, T ${r.ties}, High Score: ${r.highScore}, Avg Auto Alliance: ${avgAuto}`);
           });
         }
 
+      } catch (error) {
+        addSummary("Failed to load matches: " + error.message);
+      } finally {
         loadingMsg.textContent = "";
-      } catch (err) {
-        loadingMsg.textContent = "";
-        addSummary("Failed to load event data. Please check the event code and try again.");
-        console.error(err);
       }
     }
   </script>
