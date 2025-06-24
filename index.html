@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match Predictions (2024 Detailed Stats)</title>
+  <title>FTC Match Predictions</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #121212;
-      --fg: #fff;
+      --fg: #ffffff;
       --accent-red: #ff4d4d;
       --accent-blue: #4d94ff;
       --accent-yellow: #ffd700;
@@ -17,7 +17,7 @@
     }
     body {
       font-family: 'Inter', sans-serif;
-      background: var(--bg);
+      background-color: var(--bg);
       color: var(--fg);
       padding: 20px;
       display: flex;
@@ -25,9 +25,9 @@
       align-items: center;
     }
     h1 {
+      font-size: 28px;
       font-weight: 700;
       margin-bottom: 5px;
-      font-size: 28px;
       text-align: center;
     }
     .info, #eventTitle {
@@ -47,6 +47,7 @@
     }
     button {
       background-color: var(--accent-blue);
+      color: white;
       border: none;
       cursor: pointer;
     }
@@ -87,14 +88,6 @@
       color: #fff;
       font-weight: bold;
     }
-    .sample-icon::after {
-      content: " 🧪";
-      color: var(--accent-yellow);
-    }
-    .specimen-icon::after {
-      content: " 🧬";
-      color: var(--accent-purple);
-    }
     .summary-box {
       background-color: #2c2c2c;
       border: 1px solid var(--border);
@@ -120,12 +113,12 @@
   </style>
 </head>
 <body>
-  <h1>FTC Match Predictions (2024 Detailed Stats)</h1>
+  <h1>FTC Match Predictions</h1>
   <div id="eventTitle" class="info">Enter a valid FTCScout event code to begin.</div>
   <div>
-    <input type="text" id="eventCode" placeholder="Enter event code (e.g. NJ2024)" />
+    <input type="text" id="eventCode" placeholder="Enter event code" />
     <input type="number" id="highlightTeam" placeholder="Highlight team #" />
-    <button id="loadBtn">Load Matches</button>
+    <button id="loadButton">Load Matches</button>
   </div>
   <div id="summary-container"></div>
   <div id="loading"></div>
@@ -135,9 +128,9 @@
         <th>Match</th>
         <th>Red 1</th>
         <th>Red 2</th>
-        <th>Red Total</th>
+        <th>Red Score</th>
         <th>Winner</th>
-        <th>Blue Total</th>
+        <th>Blue Score</th>
         <th>Blue 1</th>
         <th>Blue 2</th>
       </tr>
@@ -146,233 +139,240 @@
   </table>
   <div id="footer">Powered by FTCScout API</div>
 
-  <script>
-    const MATCH_Q = `
-      query($code:String!) {
-        eventByCode(code:$code,season:2024) {
-          name
-          matches {
-            id
-            matchNum
-            teams {
-              teamNumber
-              station
-              alliance
-            }
-          }
-        }
-      }
-    `;
+<script>
+  // Your predictor scoring logic integrated here
 
-    const TEAM_Q = `
-      query($team:Int!) {
-        teamByNumber(number:$team) {
-          events(season:2024) {
-            event {
-              end
-              started
-            }
-            stats {
-              ... on TeamEventStats2024 {
-                opr {
-                  totalPointsNp
-                  autoPoints
-                  autoSpecimenPoints
-                  autoSamplePoints
-                  dcPoints
-                  dcSpecimenPoints
-                  dcSamplePoints
-                  dcParkPoints
+  // Classes from your predictor:
+
+  class Event {
+    constructor(ende, startede, temp) {
+      this.date = new Date(ende);
+      this.started = startede;
+      this.tot = temp[0];
+      this.a = temp[1];
+      this.aSp = temp[2];
+      this.aSa = temp[3];
+      this.d = temp[4];
+      this.dSp = temp[5];
+      this.dSa = temp[6];
+      this.e = temp[7];
+    }
+  }
+
+  class Team {
+    constructor(teamNum, ee) {
+      this.num = teamNum;
+      this.tot = ee.tot;
+      this.a = ee.a;
+      this.aSp = ee.aSp;
+      this.aSa = ee.aSa;
+      this.d = ee.d;
+      this.dSp = ee.dSp;
+      this.dSa = ee.dSa;
+      this.e = ee.e;
+    }
+  }
+
+  class Alliance {
+    constructor(t1, t2) {
+      if (t1.aSp > t2.aSp) {
+        this.aSp = t1.aSp;
+        this.aSa = t2.aSa;
+      } else {
+        this.aSp = t2.aSp;
+        this.aSa = t1.aSa;
+      }
+      this.a = this.aSp + this.aSa;
+
+      if (t1.dSp > t2.dSp) {
+        this.dSp = t1.dSp;
+        this.dSa = t2.dSa;
+      } else {
+        this.dSp = t2.dSp;
+        this.dSa = t1.dSa;
+      }
+      this.d = this.dSp + this.dSa;
+
+      this.e = t1.e + t2.e;
+      this.tot = this.a + this.d + this.e;
+      this.uTot = t1.tot + t2.tot;
+    }
+  }
+
+  // Fetch team event data from GraphQL API and get best recent event for scoring:
+  async function fetchTeam(teamNumber) {
+    if (!teamNumber) return null;
+    try {
+      const query = {
+        query: `
+        query {
+          teamByNumber(number: ${teamNumber}) {
+            events(season: 2024) {
+              event {
+                end
+                started
+              }
+              stats {
+                ... on TeamEventStats2024 {
+                  opr {
+                    totalPointsNp
+                    autoPoints
+                    autoSpecimenPoints
+                    autoSamplePoints
+                    dcPoints
+                    dcSpecimenPoints
+                    dcSamplePoints
+                    dcParkPoints
+                  }
                 }
               }
             }
           }
-        }
-      }
-    `;
-
-    const $ = id => document.getElementById(id);
-    const teamStats = {};
-    let results = {};
-    let ranked = [];
-
-    async function fetchGraphQL(query, variables) {
-      const res = await fetch("https://api.ftcscout.org/graphql", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, variables }),
-      });
-      const json = await res.json();
-      if (json.errors) throw new Error(json.errors[0].message);
-      return json.data;
-    }
-
-    async function getTeamData(team) {
-      if (teamStats[team]) return teamStats[team];
-      const { teamByNumber } = await fetchGraphQL(TEAM_Q, { team });
-      if (!teamByNumber || !teamByNumber.events.length) {
-        const empty = {
-          name: `#${team}`,
-          total: 0,
-          oprPoints: 0,
-          autoPoints: 0,
-          autoSamplePoints: 0,
-          autoSpecimenPoints: 0,
-          dcPoints: 0,
-          dcSamplePoints: 0,
-          dcSpecimenPoints: 0,
-          dcParkPoints: 0
-        };
-        teamStats[team] = empty;
-        return empty;
-      }
-
-      const latestEvent = teamByNumber.events.reduce((latest, ev) => {
-        const latestEnd = new Date(latest?.event?.end || 0);
-        const evEnd = new Date(ev.event?.end || 0);
-        return evEnd > latestEnd ? ev : latest;
-      }, null);
-
-      const opr = latestEvent.stats?.opr || {};
-      const total = [
-        opr.totalPointsNp,
-        opr.autoPoints,
-        opr.autoSamplePoints,
-        opr.autoSpecimenPoints,
-        opr.dcPoints,
-        opr.dcSamplePoints,
-        opr.dcSpecimenPoints,
-        opr.dcParkPoints
-      ].reduce((sum, val) => sum + (val || 0), 0);
-
-      const result = {
-        name: teamByNumber.name || `#${team}`,
-        total,
-        ...opr
+        }`,
       };
-      teamStats[team] = result;
-      return result;
-    }
+      const res = await fetch('https://api.ftcscout.org/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(query),
+      });
+      if (!res.ok) throw new Error('Network error');
+      const data = await res.json();
 
-    function formatMatch(matchNum) {
-      return matchNum > 20000 ? `M-${matchNum - 20000}` : `Q-${matchNum}`;
-    }
+      if (!data.data?.teamByNumber?.events) return null;
 
-    function pickRandomTeam(arr) {
-      return arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
-    }
+      const events = data.data.teamByNumber.events;
 
-    function highlightClass(teamNum, color, highlightTeam, sampleTeam, specimenTeam) {
-      let cls = `${color}-team`;
-      if (teamNum === highlightTeam) cls = `highlighted ${color}-team`;
-      if (teamNum === sampleTeam) cls += " sample-icon";
-      if (teamNum === specimenTeam) cls += " specimen-icon";
-      return cls;
-    }
-
-    async function loadData() {
-      const code = $("eventCode").value.trim();
-      const highlight = parseInt($("highlightTeam").value);
-      const tbody = $("matches").querySelector("tbody");
-      const summary = $("summary-container");
-      tbody.innerHTML = "";
-      summary.innerHTML = "";
-      $("loading").textContent = "Loading...";
-
-      results = {};
-      Object.keys(teamStats).forEach(k => delete teamStats[k]);
-
-      try {
-        const { eventByCode } = await fetchGraphQL(MATCH_Q, { code });
-        if (!eventByCode) throw new Error("Invalid event code");
-
-        $("eventTitle").textContent = eventByCode.name;
-
-        let topScore = 0, topTeams = [];
-        let matchSum = 0, matchCount = 0;
-
-        for (const m of eventByCode.matches) {
-          const matchNum = m.matchNum ?? m.id;
-          const red = m.teams.filter(t => t.alliance === "Red");
-          const blue = m.teams.filter(t => t.alliance === "Blue");
-
-          const redStats = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
-          const blueStats = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
-
-          const redTotal = Math.round(redStats.reduce((a, b) => a + b.total, 0));
-          const blueTotal = Math.round(blueStats.reduce((a, b) => a + b.total, 0));
-
-          const redSample = pickRandomTeam(red)?.teamNumber;
-          const blueSpecimen = pickRandomTeam(blue)?.teamNumber;
-
-          const winner = redTotal > blueTotal ? "Red" : blueTotal > redTotal ? "Blue" : "Tie";
-
-          for (const team of red.concat(blue)) {
-            const num = team.teamNumber;
-            if (!results[num]) results[num] = { wins: 0, losses: 0, ties: 0, high: 0 };
-            const r = results[num];
-            const score = team.alliance === "Red" ? redTotal : blueTotal;
-            if (score > r.high) r.high = score;
-            if (winner === "Tie") r.ties++;
-            else if (team.alliance === winner) r.wins++;
-            else r.losses++;
-          }
-
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${formatMatch(matchNum)}</td>
-            <td class="${highlightClass(red[0]?.teamNumber, 'red', highlight, redSample, blueSpecimen)}">${red[0]?.teamNumber || ''}</td>
-            <td class="${highlightClass(red[1]?.teamNumber, 'red', highlight, redSample, blueSpecimen)}">${red[1]?.teamNumber || ''}</td>
-            <td class="red-team">${redTotal}</td>
-            <td style="color:${winner === "Red" ? "var(--accent-red)" : winner === "Blue" ? "var(--accent-blue)" : "var(--accent-purple)"}">${winner}</td>
-            <td class="blue-team">${blueTotal}</td>
-            <td class="${highlightClass(blue[0]?.teamNumber, 'blue', highlight, redSample, blueSpecimen)}">${blue[0]?.teamNumber || ''}</td>
-            <td class="${highlightClass(blue[1]?.teamNumber, 'blue', highlight, redSample, blueSpecimen)}">${blue[1]?.teamNumber || ''}</td>
-          `;
-          tbody.appendChild(row);
-
-          if (Math.max(redTotal, blueTotal) > topScore) {
-            topScore = Math.max(redTotal, blueTotal);
-            topTeams = redTotal > blueTotal ? red : blue;
-          }
-
-          matchSum += (redTotal + blueTotal) / 2;
-          matchCount++;
-
-          await new Promise(r => setTimeout(r, 100));
+      // Find the most recent started event with valid stats
+      let bestEvent = null;
+      for (const ev of events) {
+        if (!ev.event?.started || !ev.event.end) continue;
+        const endDate = new Date(ev.event.end);
+        if (!ev.stats?.opr) continue;
+        if (!bestEvent || endDate > bestEvent.date) {
+          bestEvent = new Event(
+            ev.event.end,
+            ev.event.started,
+            [
+              ev.stats.opr.totalPointsNp ?? 0,
+              ev.stats.opr.autoPoints ?? 0,
+              ev.stats.opr.autoSpecimenPoints ?? 0,
+              ev.stats.opr.autoSamplePoints ?? 0,
+              ev.stats.opr.dcPoints ?? 0,
+              ev.stats.opr.dcSpecimenPoints ?? 0,
+              ev.stats.opr.dcSamplePoints ?? 0,
+              ev.stats.opr.dcParkPoints ?? 0,
+            ]
+          );
+          bestEvent.date = endDate;
         }
-
-        ranked = Object.entries(results).map(([team, r]) => {
-          const games = r.wins + r.losses + r.ties;
-          const rp = (2 * r.wins + r.ties) / (games || 1);
-          return { team: +team, ...r, rp: rp.toFixed(2) };
-        }).sort((a, b) => b.rp - a.rp || b.high - a.high);
-
-        const top = ranked[0];
-        const avgScore = (matchSum / matchCount).toFixed(2);
-
-        summary.innerHTML += `<div class="summary-box">Predicted High Score: ${topScore} (${topTeams.map(t => t.teamNumber).join(" & ")})</div>`;
-        summary.innerHTML += `<div class="summary-box">Predicted Average Match Score: ${avgScore}</div>`;
-        summary.innerHTML += `<div class="summary-box">Predicted 1st Place: ${top.team} (RP: ${top.rp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.high})</div>`;
-
-        if (highlight && results[highlight]) {
-          const place = ranked.findIndex(r => r.team === highlight) + 1;
-          const r = results[highlight];
-          const rp = ((2 * r.wins + r.ties) / (r.wins + r.losses + r.ties)).toFixed(2);
-          const suffix = ["th","st","nd","rd"][(place%100>3 && place%100<21)?0:(place%10)] || "th";
-          summary.innerHTML += `<div class="summary-box">Predicted ${place}${suffix} Place: ${highlight} (RP: ${rp}, W-L-T: ${r.wins}-${r.losses}-${r.ties}, High Score: ${r.high})</div>`;
-        }
-
-        $("loading").textContent = "";
-      } catch (e) {
-        $("loading").textContent = "Error: " + e.message;
-        $("eventTitle").textContent = "Enter a valid FTCScout event code to begin.";
-        tbody.innerHTML = "";
-        $("summary-container").innerHTML = "";
       }
-    }
 
-    $("loadBtn").addEventListener("click", loadData);
-  </script>
+      if (!bestEvent) return null;
+
+      return new Team(teamNumber, bestEvent);
+    } catch {
+      return null;
+    }
+  }
+
+  // Format match numbers (keep your existing style)
+  function formatMatchNumber(num) {
+    if (num > 20000) {
+      const playoff = num - 20000;
+      const round = Math.floor(playoff / 1000);
+      const sub = playoff % 100;
+      return sub === 1 ? `M-${round}` : `M-${round}.${sub}`;
+    }
+    return num ? `Q-${num}` : "?";
+  }
+
+  // Cache to avoid refetching team data multiple times
+  const teamCache = {};
+
+  async function getTeamData(teamNumber) {
+    if (teamCache[teamNumber]) return teamCache[teamNumber];
+    const data = await fetchTeam(teamNumber);
+    // If no data, return dummy zeros
+    if (!data) {
+      const dummy = new Team(teamNumber, {
+        tot: 0, a: 0, aSp: 0, aSa: 0, d: 0, dSp: 0, dSa: 0, e: 0
+      });
+      teamCache[teamNumber] = dummy;
+      return dummy;
+    }
+    teamCache[teamNumber] = data;
+    return data;
+  }
+
+  document.getElementById("loadButton").addEventListener("click", async () => {
+    const code = document.getElementById("eventCode").value.trim();
+    const highlightTeam = parseInt(document.getElementById("highlightTeam").value.trim());
+    const tbody = document.querySelector("#matches tbody");
+    const loading = document.getElementById("loading");
+    const eventTitle = document.getElementById("eventTitle");
+    const summaryContainer = document.getElementById("summary-container");
+
+    tbody.innerHTML = "";
+    summaryContainer.innerHTML = "";
+    loading.textContent = "Loading...";
+    eventTitle.textContent = "";
+
+    try {
+      const [matches, event] = await Promise.all([
+        fetch(`https://api.ftcscout.org/rest/v1/events/2024/${code}/matches`).then(r => {
+          if(!r.ok) throw new Error(`Matches load failed (${r.status})`);
+          return r.json();
+        }),
+        fetch(`https://api.ftcscout.org/rest/v1/events/2024/${code}`).then(r => {
+          if(!r.ok) throw new Error(`Event load failed (${r.status})`);
+          return r.json();
+        }),
+      ]);
+
+      eventTitle.textContent = event?.name || "FTC Event";
+
+      for (const match of matches) {
+        const matchNumber = match.matchNumber || match.id || "?";
+        const teams = match.teams || [];
+
+        // Get alliance teams
+        const redTeams = teams.filter(t => t.alliance === "Red");
+        const blueTeams = teams.filter(t => t.alliance === "Blue");
+
+        // Fetch team detailed data (your detailed OPR etc)
+        const redData = await Promise.all(redTeams.map(t => getTeamData(t.teamNumber)));
+        const blueData = await Promise.all(blueTeams.map(t => getTeamData(t.teamNumber)));
+
+        // Create alliances with your logic
+        const redAlliance = new Alliance(redData[0], redData[1]);
+        const blueAlliance = new Alliance(blueData[0], blueData[1]);
+
+        // Predicted scores from your model:
+        const redScore = Math.round(redAlliance.tot);
+        const blueScore = Math.round(blueAlliance.tot);
+
+        // Determine winner for display
+        const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${formatMatchNumber(matchNumber)}</td>
+          <td class="${redTeams[0]?.teamNumber == highlightTeam ? 'highlighted red-team' : 'red-team'}">${redTeams[0]?.teamNumber || '-'}</td>
+          <td class="${redTeams[1]?.teamNumber == highlightTeam ? 'highlighted red-team' : 'red-team'}">${redTeams[1]?.teamNumber || '-'}</td>
+          <td class="red-team">${redScore}</td>
+          <td style="color:${winner === 'Red' ? 'var(--accent-red)' : winner === 'Blue' ? 'var(--accent-blue)' : 'var(--accent-purple)'}">${winner}</td>
+          <td class="blue-team">${blueScore}</td>
+          <td class="${blueTeams[0]?.teamNumber == highlightTeam ? 'highlighted blue-team' : 'blue-team'}">${blueTeams[0]?.teamNumber || '-'}</td>
+          <td class="${blueTeams[1]?.teamNumber == highlightTeam ? 'highlighted blue-team' : 'blue-team'}">${blueTeams[1]?.teamNumber || '-'}</td>
+        `;
+        tbody.appendChild(row);
+      }
+
+      loading.textContent = "";
+    } catch (e) {
+      loading.textContent = "Failed to load: " + e.message;
+    }
+  });
+</script>
 </body>
 </html>
