@@ -2,132 +2,377 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match Predictions (2024)</title>
+  <title>FTC Match Predictions (2024 Detailed Stats)</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #121212; --fg: #fff;
-      --accent-red: #ff4d4d; --accent-blue: #4d94ff;
+      --bg: #121212;
+      --fg: #fff;
+      --accent-red: #ff4d4d;
+      --accent-blue: #4d94ff;
+      --accent-yellow: #ffd700;
+      --accent-purple: #b366ff;
+      --card-bg: #1e1e1e;
       --border: #333;
     }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--fg); padding: 20px; text-align: center; }
-    input, button { padding: 8px 12px; margin: 5px; font-size: 14px; border-radius: 6px; border: 1px solid var(--border); background: #222; color: var(--fg); }
-    button { background: var(--accent-blue); cursor: pointer; }
-    table { width: 98%; max-width: 1400px; border-collapse: collapse; margin-top: 20px; border: 1px solid var(--border); }
-    th, td { border: 1px solid var(--border); padding: 10px; font-size:13px; }
-    th { background: #2c2c2c; }
-    .red-team { color: var(--accent-red); }
-    .blue-team { color: var(--accent-blue); }
-    .highlighted.red-team { background: var(--accent-red); color: #fff; }
-    .highlighted.blue-team { background: var(--accent-blue); color: #fff; }
-    img.icon { width: 16px; height: 16px; vertical-align: middle; margin-left: 4px; }
-    .summary-box { background: #2c2c2c; border: 1px solid var(--border); padding: 12px; margin: 10px auto; max-width: 800px; text-align: center; }
-    #loading { color: #aaa; margin-top: 10px; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-weight: 700;
+      margin-bottom: 5px;
+      font-size: 28px;
+      text-align: center;
+    }
+    .info, #eventTitle {
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    input, button {
+      padding: 8px 12px;
+      margin: 5px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background-color: #222;
+      color: var(--fg);
+    }
+    button {
+      background-color: var(--accent-blue);
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1c6ed2;
+    }
+    table {
+      width: 98%;
+      max-width: 1400px;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+      border: 1px solid var(--border);
+      font-size: 13px;
+    }
+    th {
+      background-color: #2c2c2c;
+      font-weight: 600;
+    }
+    .red-team {
+      color: var(--accent-red);
+    }
+    .blue-team {
+      color: var(--accent-blue);
+    }
+    .highlighted.red-team {
+      background-color: var(--accent-red);
+      color: #fff;
+      font-weight: bold;
+    }
+    .highlighted.blue-team {
+      background-color: var(--accent-blue);
+      color: #fff;
+      font-weight: bold;
+    }
+    .sample-icon::after {
+      content: " 🧪";
+      color: var(--accent-yellow);
+    }
+    .specimen-icon::after {
+      content: " 🧬";
+      color: var(--accent-purple);
+    }
+    .summary-box {
+      background-color: #2c2c2c;
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      margin-top: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--fg);
+      max-width: 800px;
+      text-align: center;
+    }
+    #footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+    }
+    #loading {
+      font-size: 14px;
+      margin-top: 10px;
+      color: #aaa;
+    }
   </style>
 </head>
 <body>
-  <h1>FTC Match Predictions (2024)</h1>
+  <h1>FTC Match Predictions (2024 Detailed Stats)</h1>
+  <div id="eventTitle" class="info">Enter a valid FTCScout event code to begin.</div>
   <div>
-    <input id="eventCode" placeholder="Event Code (e.g. NJ2024)" />
-    <input id="highlightTeam" type="number" placeholder="Highlight Team #" />
+    <input type="text" id="eventCode" placeholder="Enter event code (e.g. NJ2024)" />
+    <input type="number" id="highlightTeam" placeholder="Highlight team #" />
     <button id="loadBtn">Load Matches</button>
   </div>
+  <div id="summary-container"></div>
   <div id="loading"></div>
-  <table>
+  <table id="matches">
     <thead>
       <tr>
-        <th>Match</th><th>Red 1</th><th>Red 2</th><th>Red Score</th><th>Winner</th><th>Blue Score</th><th>Blue 1</th><th>Blue 2</th>
+        <th>Match</th>
+        <th>Red 1</th>
+        <th>Red 2</th>
+        <th>Red Total</th>
+        <th>Winner</th>
+        <th>Blue Total</th>
+        <th>Blue 1</th>
+        <th>Blue 2</th>
       </tr>
     </thead>
-    <tbody id="matches"></tbody>
+    <tbody></tbody>
   </table>
-  <div id="summary"></div>
+  <div id="footer">Powered by FTCScout API</div>
 
   <script>
-    const MATCH_Q = `query($code:String!){ eventByCode(code:$code,season:2024){ name matches{ matchNum teams{ teamNumber alliance } } } }`;
-    const TEAM_Q = `query($team:Int!){ teamByNumber(number:$team){ events(season:2024){ event{ end started } stats{ ... on TeamEventStats2024{ opr{ totalPointsNp autoPoints autoSpecimenPoints autoSamplePoints dcPoints dcSpecimenPoints dcSamplePoints dcParkPoints } } } } } }`;
+    const MATCH_Q = `
+      query($code:String!) {
+        eventByCode(code:$code,season:2024) {
+          name
+          matches {
+            id
+            matchNum
+            teams {
+              teamNumber
+              station
+              alliance
+            }
+          }
+        }
+      }
+    `;
 
-    const teamCache = {};
-    const results = {};
+    const TEAM_Q = `
+      query($team:Int!) {
+        teamByNumber(number:$team) {
+          events(season:2024) {
+            event {
+              end
+              started
+            }
+            stats {
+              ... on TeamEventStats2024 {
+                opr {
+                  totalPointsNp
+                  autoPoints
+                  autoSpecimenPoints
+                  autoSamplePoints
+                  dcPoints
+                  dcSpecimenPoints
+                  dcSamplePoints
+                  dcParkPoints
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
 
-    async function gql(q, vars){
-      const r=await fetch("https://api.ftcscout.org/graphql", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q,variables:vars})});
-      const j=await r.json(); if(j.errors) throw Error(j.errors[0].message);
-      return j.data;
+    const $ = id => document.getElementById(id);
+    const teamStats = {};
+    let results = {};
+    let ranked = [];
+
+    async function fetchGraphQL(query, variables) {
+      const res = await fetch("https://api.ftcscout.org/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, variables }),
+      });
+      const json = await res.json();
+      if (json.errors) throw new Error(json.errors[0].message);
+      return json.data;
     }
 
-    async function getTeamStats(num){
-      if(teamCache[num]) return teamCache[num];
-      const { teamByNumber } = await gql(TEAM_Q,{team:num});
-      const evs = teamByNumber?.events || [];
-      const latest = evs.sort((a,b)=>new Date(b.event.end)-new Date(a.event.end))[0];
-      const o=latest?.stats?.opr||{};
-      const autoSample = (o.autoSamplePoints||0)+(o.dcSamplePoints||0);
-      const autoSpecimen = (o.autoSpecimenPoints||0)+(o.dcSpecimenPoints||0);
-      const total = autoSample+autoSpecimen+(o.autoPoints||0)+(o.dcPoints||0)+(o.totalPointsNp||0)+(o.dcParkPoints||0);
-      const icon = autoSample>=autoSpecimen?"sample":"specimen";
-      return teamCache[num]={num,total,auto:o.autoPoints||0, autoSample,autoSpecimen, icon};
+    async function getTeamData(team) {
+      if (teamStats[team]) return teamStats[team];
+      const { teamByNumber } = await fetchGraphQL(TEAM_Q, { team });
+      if (!teamByNumber || !teamByNumber.events.length) {
+        const empty = {
+          name: `#${team}`,
+          total: 0,
+          oprPoints: 0,
+          autoPoints: 0,
+          autoSamplePoints: 0,
+          autoSpecimenPoints: 0,
+          dcPoints: 0,
+          dcSamplePoints: 0,
+          dcSpecimenPoints: 0,
+          dcParkPoints: 0
+        };
+        teamStats[team] = empty;
+        return empty;
+      }
+
+      const latestEvent = teamByNumber.events.reduce((latest, ev) => {
+        const latestEnd = new Date(latest?.event?.end || 0);
+        const evEnd = new Date(ev.event?.end || 0);
+        return evEnd > latestEnd ? ev : latest;
+      }, null);
+
+      const opr = latestEvent.stats?.opr || {};
+      const total = [
+        opr.totalPointsNp,
+        opr.autoPoints,
+        opr.autoSamplePoints,
+        opr.autoSpecimenPoints,
+        opr.dcPoints,
+        opr.dcSamplePoints,
+        opr.dcSpecimenPoints,
+        opr.dcParkPoints
+      ].reduce((sum, val) => sum + (val || 0), 0);
+
+      const result = {
+        name: teamByNumber.name || `#${team}`,
+        total,
+        ...opr
+      };
+      teamStats[team] = result;
+      return result;
     }
 
-    document.getElementById("loadBtn").onclick = async ()=>{
-      const code=document.getElementById("eventCode").value.trim();
-      const hl = +document.getElementById("highlightTeam").value;
-      const T = document.getElementById("matches"), L=document.getElementById("loading"), S=document.getElementById("summary");
-      T.innerHTML=S.innerHTML=L.textContent="";
-      Object.assign(results, {});
+    function formatMatch(matchNum) {
+      return matchNum > 20000 ? `M-${matchNum - 20000}` : `Q-${matchNum}`;
+    }
 
-      try{
-        L.textContent="Loading…";
-        const { eventByCode } = await gql(MATCH_Q,{code});
-        const ev=eventByCode;
-        for(const m of ev.matches){
-          const mk = m.matchNum||"?";
-          const red = m.teams.filter(t=>t.alliance==="Red").map(t=>t.teamNumber);
-          const blue = m.teams.filter(t=>t.alliance==="Blue").map(t=>t.teamNumber);
-          const rd=await Promise.all(red.map(getTeamStats));
-          const bd=await Promise.all(blue.map(getTeamStats));
-          const rS=Math.round(rd.reduce((a,b)=>a+b.total,0));
-          const bS=Math.round(bd.reduce((a,b)=>a+b.total,0));
-          const win = rS>bS?"Red":bS>rS?"Blue":"Tie";
-          [ ...red, ...blue].forEach(t=>{
-            if(!results[t]) results[t]={w:0,l:0,tie:0,high:0,autoSum:0,games:0};
-          });
-          red.forEach(t=>{
-            const r=results[t]; r.games++; r.autoSum+=rd.find(x=>x.num===t).auto; win==="Red"?r.w++:win==="Tie"?r.tie++:r.l++;
-            r.high = Math.max(r.high, rS);
-          });
-          blue.forEach(t=>{
-            const r=results[t]; r.games++; r.autoSum+=bd.find(x=>x.num===t).auto; win==="Blue"?r.w++:win==="Tie"?r.tie++:r.l++;
-            r.high = Math.max(r.high, bS);
-          });
+    function pickRandomTeam(arr) {
+      return arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
+    }
 
-          const tr = document.createElement("tr");
-          const c = t=>t===hl;
-          const cell = (t, data, color) => `<td class="${c(t)?`highlighted ${color}-team`:`${color}-team`}">${t}<img src="images/${data.icon}.png" class="icon"></td>`;
-          tr.innerHTML=`
-            <td>Q-${mk}</td>
-            ${cell(red[0], rd[0],"red")||"<td>-</td>"}${cell(red[1], rd[1],"red")||"<td>-</td>"}
-            <td class="red-team">${rS}</td><td style="color:${win==="Red"?"var(--accent-red)":win==="Blue"?"var(--accent-blue)":"#aaa"}">${win}</td>
-            <td class="blue-team">${bS}</td>
-            ${cell(blue[0], bd[0],"blue")||"<td>-</td>"}${cell(blue[1], bd[1],"blue")||"<td>-</td>"}`;
-          T.appendChild(tr);
+    function highlightClass(teamNum, color, highlightTeam, sampleTeam, specimenTeam) {
+      let cls = `${color}-team`;
+      if (teamNum === highlightTeam) cls = `highlighted ${color}-team`;
+      if (teamNum === sampleTeam) cls += " sample-icon";
+      if (teamNum === specimenTeam) cls += " specimen-icon";
+      return cls;
+    }
+
+    async function loadData() {
+      const code = $("eventCode").value.trim();
+      const highlight = parseInt($("highlightTeam").value);
+      const tbody = $("matches").querySelector("tbody");
+      const summary = $("summary-container");
+      tbody.innerHTML = "";
+      summary.innerHTML = "";
+      $("loading").textContent = "Loading...";
+
+      results = {};
+      Object.keys(teamStats).forEach(k => delete teamStats[k]);
+
+      try {
+        const { eventByCode } = await fetchGraphQL(MATCH_Q, { code });
+        if (!eventByCode) throw new Error("Invalid event code");
+
+        $("eventTitle").textContent = eventByCode.name;
+
+        let topScore = 0, topTeams = [];
+        let matchSum = 0, matchCount = 0;
+
+        for (const m of eventByCode.matches) {
+          const matchNum = m.matchNum ?? m.id;
+          const red = m.teams.filter(t => t.alliance === "Red");
+          const blue = m.teams.filter(t => t.alliance === "Blue");
+
+          const redStats = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
+          const blueStats = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
+
+          const redTotal = Math.round(redStats.reduce((a, b) => a + b.total, 0));
+          const blueTotal = Math.round(blueStats.reduce((a, b) => a + b.total, 0));
+
+          const redSample = pickRandomTeam(red)?.teamNumber;
+          const blueSpecimen = pickRandomTeam(blue)?.teamNumber;
+
+          const winner = redTotal > blueTotal ? "Red" : blueTotal > redTotal ? "Blue" : "Tie";
+
+          for (const team of red.concat(blue)) {
+            const num = team.teamNumber;
+            if (!results[num]) results[num] = { wins: 0, losses: 0, ties: 0, high: 0 };
+            const r = results[num];
+            const score = team.alliance === "Red" ? redTotal : blueTotal;
+            if (score > r.high) r.high = score;
+            if (winner === "Tie") r.ties++;
+            else if (team.alliance === winner) r.wins++;
+            else r.losses++;
+          }
+
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${formatMatch(matchNum)}</td>
+            <td class="${highlightClass(red[0]?.teamNumber, 'red', highlight, redSample, blueSpecimen)}">${red[0]?.teamNumber || ''}</td>
+            <td class="${highlightClass(red[1]?.teamNumber, 'red', highlight, redSample, blueSpecimen)}">${red[1]?.teamNumber || ''}</td>
+            <td class="red-team">${redTotal}</td>
+            <td style="color:${winner === "Red" ? "var(--accent-red)" : winner === "Blue" ? "var(--accent-blue)" : "var(--accent-purple)"}">${winner}</td>
+            <td class="blue-team">${blueTotal}</td>
+            <td class="${highlightClass(blue[0]?.teamNumber, 'blue', highlight, redSample, blueSpecimen)}">${blue[0]?.teamNumber || ''}</td>
+            <td class="${highlightClass(blue[1]?.teamNumber, 'blue', highlight, redSample, blueSpecimen)}">${blue[1]?.teamNumber || ''}</td>
+          `;
+          tbody.appendChild(row);
+
+          if (Math.max(redTotal, blueTotal) > topScore) {
+            topScore = Math.max(redTotal, blueTotal);
+            topTeams = redTotal > blueTotal ? red : blue;
+          }
+
+          matchSum += (redTotal + blueTotal) / 2;
+          matchCount++;
+
+          await new Promise(r => setTimeout(r, 100));
         }
 
-        // Ranking summary
-        Object.entries(results).forEach(([t,r])=>{
-          r.rp = r.games ? ((2*r.w + r.tie)/r.games).toFixed(2) : "0.00";
-          r.tbp = r.games?(r.autoSum/r.games).toFixed(2):"0.00";
-        });
-        const sorted = Object.entries(results).sort(([,a],[,b])=>b.rp-a.rp||b.tbP-a.tbP||b.high-a.high);
-        const [team1]=sorted[0];
-        S.appendChild(Object.assign(document.createElement('div'),{className:'summary-box',textContent:
-          `Predicted 1st: ${team1} (RP: ${results[team1].rp}, TBP: ${results[team1].tbp}, W-L-T: ${results[team1].w}-${results[team1].l}-${results[team1].tie}, HighScore: ${results[team1].high})`
-        }));
-        L.textContent="";
-      }catch(e){
-        L.textContent="Error: "+e.message;
+        ranked = Object.entries(results).map(([team, r]) => {
+          const games = r.wins + r.losses + r.ties;
+          const rp = (2 * r.wins + r.ties) / (games || 1);
+          return { team: +team, ...r, rp: rp.toFixed(2) };
+        }).sort((a, b) => b.rp - a.rp || b.high - a.high);
+
+        const top = ranked[0];
+        const avgScore = (matchSum / matchCount).toFixed(2);
+
+        summary.innerHTML += `<div class="summary-box">Predicted High Score: ${topScore} (${topTeams.map(t => t.teamNumber).join(" & ")})</div>`;
+        summary.innerHTML += `<div class="summary-box">Predicted Average Match Score: ${avgScore}</div>`;
+        summary.innerHTML += `<div class="summary-box">Predicted 1st Place: ${top.team} (RP: ${top.rp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.high})</div>`;
+
+        if (highlight && results[highlight]) {
+          const place = ranked.findIndex(r => r.team === highlight) + 1;
+          const r = results[highlight];
+          const rp = ((2 * r.wins + r.ties) / (r.wins + r.losses + r.ties)).toFixed(2);
+          const suffix = ["th","st","nd","rd"][(place%100>3 && place%100<21)?0:(place%10)] || "th";
+          summary.innerHTML += `<div class="summary-box">Predicted ${place}${suffix} Place: ${highlight} (RP: ${rp}, W-L-T: ${r.wins}-${r.losses}-${r.ties}, High Score: ${r.high})</div>`;
+        }
+
+        $("loading").textContent = "";
+      } catch (e) {
+        $("loading").textContent = "Error: " + e.message;
+        $("eventTitle").textContent = "Enter a valid FTCScout event code to begin.";
+        tbody.innerHTML = "";
+        $("summary-container").innerHTML = "";
       }
-    };
+    }
+
+    $("loadBtn").addEventListener("click", loadData);
   </script>
 </body>
 </html>
