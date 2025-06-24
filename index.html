@@ -1,160 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>FTC Match Predictions (2024)</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FTC Match Predictor</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.ftcscout.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline';">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #111; color: #eee; padding: 20px; text-align: center; }
-    input, button { padding: 8px 12px; margin: 5px; font-size: 14px; border-radius: 5px; background: #222; color: #fff; border: 1px solid #444; }
-    button { background: #3a6ef0; cursor: pointer; }
-    table { width: 100%; max-width: 1000px; border-collapse: collapse; margin: 20px auto; }
-    th, td { border: 1px solid #333; padding: 8px; text-align: center; }
-    th { background: #222; }
-    .red { color: #f55; }
-    .blue { color: #5af; }
-    .highlighted { font-weight: bold; }
-    img.icon { width: 16px; height: 16px; vertical-align: middle; }
-    #loading { margin-top: 10px; font-size: 14px; color: #aaa; }
-    #summary { margin-top: 20px; font-size: 16px; }
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f4faff;
+      color: #002b45;
+      margin: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-weight: 600;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #003366;
+    }
+    button {
+      background: #003366;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .match {
+      margin: 20px auto;
+      padding: 15px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 600px;
+      text-align: left;
+    }
+    .alliance {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+    }
+    .blue {
+      color: #003366;
+    }
+    .red {
+      color: #b30000;
+    }
+    .icons img {
+      height: 20px;
+      margin-left: 5px;
+    }
   </style>
 </head>
 <body>
-  <h1>FTC Match Predictions (2024)</h1>
-  <div>
-    <input id="eventCode" placeholder="Event Code (e.g. NJ2024)" />
-    <input id="highlightTeam" type="number" placeholder="Highlight Team #" />
-    <button id="loadBtn">Load Matches</button>
-  </div>
-  <div id="loading"></div>
-  <table>
-    <thead>
-      <tr>
-        <th>Match</th>
-        <th>Red 1</th><th>Red 2</th><th>Red Total</th>
-        <th>Winner</th>
-        <th>Blue Total</th><th>Blue 1</th><th>Blue 2</th>
-      </tr>
-    </thead>
-    <tbody id="matches"></tbody>
-  </table>
-  <div id="summary"></div>
+  <h1>FTC Match Predictor - By 20077</h1>
+  <label>Team 1 Blue:</label><input id="team1Blue">
+  <label>Team 2 Blue:</label><input id="team2Blue"><br>
+  <label>Team 1 Red:</label><input id="team1Red">
+  <label>Team 2 Red:</label><input id="team2Red"><br>
+  <button onclick="fetchData()">Fetch Data</button>
+
+  <div id="matchResult"></div>
 
   <script>
-    const MATCH_Q = `
-      query($code: String!) {
-        eventByCode(code: $code, season: 2024) {
-          name
-          matches { matchNum teams { teamNumber alliance } }
-        }
+    function convertAPIDate2Date(s) {
+      return new Date(s);
+    }
+
+    function convertOprStats2Array(s) {
+      return [
+        s.totalPointsNp, s.autoPoints, s.autoSpecimenPoints, s.autoSamplePoints,
+        s.dcPoints, s.dcSpecimenPoints, s.dcSamplePoints, s.dcParkPoints
+      ];
+    }
+
+    class Event {
+      constructor(ende, startede, temp) {
+        this.date = convertAPIDate2Date(ende);
+        this.started = startede;
+        [this.tot, this.a, this.aSp, this.aSa, this.d, this.dSp, this.dSa, this.e] = temp;
       }
-    `;
-    const TEAM_Q = `
-      query($team: Int!) {
-        teamByNumber(number: $team) {
-          events(season: 2024) {
-            event { end }
-            stats {
-              ... on TeamEventStats2024 {
-                opr { totalPointsNp autoPoints autoSamplePoints autoSpecimenPoints dcPoints dcSamplePoints dcSpecimenPoints dcParkPoints }
+    }
+
+    class Team {
+      constructor(teamNum, event) {
+        this.num = teamNum;
+        this.tot = event.tot;
+        this.aSp = event.aSp;
+        this.aSa = event.aSa;
+        this.dSp = event.dSp;
+        this.dSa = event.dSa;
+        this.e = event.e;
+      }
+
+      getSampleOrSpecimenIcon() {
+        if (this.aSp > this.aSa) return 'images/specimen.png';
+        if (this.aSa > this.aSp) return 'images/sample.png';
+        return '';
+      }
+    }
+
+    class Alliance {
+      constructor(t1, t2) {
+        this.icon1 = t1.getSampleOrSpecimenIcon();
+        this.icon2 = t2.getSampleOrSpecimenIcon();
+        this.a = 2 * Math.max(t1.aSp, t2.aSp);
+        this.d = Math.max(t1.dSp, t2.dSp) + Math.min(t1.dSa, t2.dSa);
+        this.e = t1.e + t2.e;
+        this.tot = this.a + this.d + this.e;
+      }
+    }
+
+    async function fetchData() {
+      const teams = [
+        document.getElementById('team1Blue').value,
+        document.getElementById('team2Blue').value,
+        document.getElementById('team1Red').value,
+        document.getElementById('team2Red').value
+      ];
+
+      const teamObjs = await Promise.all(teams.map(async (teamNum) => {
+        const res = await fetch('https://api.ftcscout.org/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: `query {
+              teamByNumber(number: ${teamNum}) {
+                events(season: 2024) {
+                  event { end started }
+                  stats {
+                    ... on TeamEventStats2024 {
+                      opr {
+                        totalPointsNp autoPoints autoSpecimenPoints autoSamplePoints
+                        dcPoints dcSpecimenPoints dcSamplePoints dcParkPoints
+                      }
+                    }
+                  }
+                }
               }
-            }
+            }`
+          })
+        });
+
+        const data = await res.json();
+        const events = data.data?.teamByNumber?.events || [];
+        let latest = new Event("1970-01-01", false, [-1, -1, -1, -1, -1, -1, -1, -1]);
+        for (const ev of events) {
+          if (!ev.event.started) continue;
+          const eDate = convertAPIDate2Date(ev.event.end);
+          const opr = ev.stats?.opr;
+          if (opr && eDate > latest.date) {
+            latest = new Event(ev.event.end, true, convertOprStats2Array(opr));
           }
         }
-      }
-    `;
+        return new Team(teamNum, latest);
+      }));
 
-    const cache = {}, results = [];
-    document.getElementById('loadBtn').addEventListener('click', loadMatches);
+      const blue = new Alliance(teamObjs[0], teamObjs[1]);
+      const red = new Alliance(teamObjs[2], teamObjs[3]);
 
-    async function gql(q, vars) {
-      const r = await fetch('https://api.ftcscout.org/graphql', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({query: q, variables: vars})
-      });
-      const j = await r.json();
-      if (j.errors) throw new Error(j.errors[0].message);
-      return j.data;
-    }
-
-    async function getStats(team){
-      if (cache[team]) return cache[team];
-      const d = await gql(TEAM_Q, {team});
-      const ev = d.teamByNumber.events || [];
-      const latest = ev.sort((a,b)=>new Date(b.event.end) - new Date(a.event.end))[0] || {};
-      const o = latest.stats?.opr || {};
-      const pts = (o.totalPointsNp||0)+(o.autoPoints||0)+(o.autoSamplePoints||0)+(o.autoSpecimenPoints||0)+
-                  (o.dcPoints||0)+(o.dcSamplePoints||0)+(o.dcSpecimenPoints||0)+(o.dcParkPoints||0);
-      const samplePts = (o.autoSamplePoints||0)+(o.dcSamplePoints||0);
-      const specimenPts = (o.autoSpecimenPoints||0)+(o.dcSpecimenPoints||0);
-      cache[team] = { pts, icon: samplePts >= specimenPts ? 'sample' : 'specimen' };
-      return cache[team];
-    }
-
-    async function loadMatches(){
-      const code = document.getElementById('eventCode').value.trim();
-      const highlight = parseInt(document.getElementById('highlightTeam').value);
-      const tbody = document.getElementById('matches');
-      tbody.innerHTML = '';
-      document.getElementById('summary').textContent = '';
-      document.getElementById('loading').textContent = 'Loading…';
-
-      Object.keys(cache).forEach(k=>delete cache[k]);
-      results.length = 0;
-
-      try {
-        const ed = await gql(MATCH_Q, {code});
-        if (!ed.eventByCode) throw new Error('Invalid event code');
-        let sum = 0, count = 0, top = 0;
-
-        for (const m of ed.eventByCode.matches){
-          const red = m.teams.filter(t=>t.alliance==='Red').map(t=>t.teamNumber);
-          const blue = m.teams.filter(t=>t.alliance==='Blue').map(t=>t.teamNumber);
-
-          const rs = await Promise.all(red.map(getStats));
-          const bs = await Promise.all(blue.map(getStats));
-
-          const rTot = rs.reduce((a,b)=>a+b.pts,0);
-          const bTot = bs.reduce((a,b)=>a+b.pts,0);
-
-          sum += (rTot + bTot)/2;
-          count++;
-          if (rTot > top) top = rTot;
-          if (bTot > top) top = bTot;
-
-          results.push({red, blue, rTot, bTot, winner: rTot>bTot?'Red':bTot>rTot?'Blue':'Tie'});
-          renderRow(m.matchNum, red, blue, rs, bs, rTot, bTot, highlight);
-          await new Promise(r=>setTimeout(r, 50));
-        }
-
-        const avg = count ? (sum/count).toFixed(2) : '0.00';
-        document.getElementById('summary').textContent = 
-          `Predicted High Score: ${top} — Avg Match Score: ${avg}`;
-      } catch(e) {
-        document.getElementById('loading').textContent = 'Error: ' + e.message;
-        return;
-      }
-      document.getElementById('loading').textContent = '';
-    }
-
-    function renderRow(num, red, blue, rs, bs, rTot, bTot, highlight){
-      const tr = document.createElement('tr');
-      const mk = num > 20000 ? `M-${num-20000}` : `Q-${num}`;
-      const makeCell = (team, stats, color) => {
-        const cls = (team === highlight ? 'highlighted ' : '') + color;
-        return `<td class="${cls}">
-          ${team} <img src="images/${stats.icon}.png" class="icon">
-        </td>`;
-      };
-      tr.innerHTML = `
-        <td>${mk}</td>
-        ${makeCell(red[0], rs[0], 'red')} ${makeCell(red[1], rs[1], 'red')}
-        <td class="red">${rTot}</td>
-        <td style="color:${rTot>bTot?'#f55':bTot>rTot?'#5af':'#aaa'}">${rTot>bTot?'Red':bTot>rTot?'Blue':'Tie'}</td>
-        <td class="blue">${bTot}</td>
-        ${makeCell(blue[0], bs[0], 'blue')} ${makeCell(blue[1], bs[1], 'blue')}
-      `;
-      document.getElementById('matches').appendChild(tr);
+      document.getElementById('matchResult').innerHTML = `
+        <div class="match">
+          <div class="alliance blue">
+            <div><strong>Blue Total:</strong> ${blue.tot.toFixed(2)}</div>
+            <div class="icons">
+              ${blue.icon1 ? `<img src="${blue.icon1}" alt="icon">` : ''}
+              ${blue.icon2 ? `<img src="${blue.icon2}" alt="icon">` : ''}
+            </div>
+          </div>
+          <div class="alliance red">
+            <div class="icons">
+              ${red.icon1 ? `<img src="${red.icon1}" alt="icon">` : ''}
+              ${red.icon2 ? `<img src="${red.icon2}" alt="icon">` : ''}
+            </div>
+            <div><strong>Red Total:</strong> ${red.tot.toFixed(2)}</div>
+          </div>
+        </div>`;
     }
   </script>
 </body>
