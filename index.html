@@ -146,7 +146,7 @@
   <div>
     <input type="text" id="eventCode" placeholder="Enter event code" />
     <input type="number" id="highlightTeam" placeholder="Highlight team #" />
-    <button onclick="loadData()">Load Matches</button>
+    <button id="loadBtn">Load Matches</button>
   </div>
 
   <div id="summary-container"></div>
@@ -198,7 +198,8 @@
 
     const $ = id => document.getElementById(id);
     const teamStats = {};
-    const ranks = [];
+    let results = {};
+    let ranked = [];
 
     async function fetchGraphQL(query, variables) {
       const res = await fetch("https://api.ftcscout.org/graphql", {
@@ -235,104 +236,125 @@
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
+    function highlightClass(teamNum, color, highlightTeam, sampleTeam, specimenTeam) {
+      let cls = `${color}-team`;
+      if (teamNum === highlightTeam) cls = `highlighted ${color}-team`;
+      if (teamNum === sampleTeam) cls += " sample-icon";
+      if (teamNum === specimenTeam) cls += " specimen-icon";
+      return cls;
+    }
+
     async function loadData() {
       const code = $("eventCode").value.trim();
       const highlight = parseInt($("highlightTeam").value);
       const tbody = $("matches").querySelector("tbody");
+      const summary = $("summary-container");
       tbody.innerHTML = "";
-      $("summary-container").innerHTML = "";
+      summary.innerHTML = "";
       $("loading").textContent = "Loading...";
 
-      const { eventByCode } = await fetchGraphQL(MATCH_Q, { code });
-      if (!eventByCode) return $("loading").textContent = "Invalid event code.";
+      results = {};
+      Object.keys(teamStats).forEach(k => delete teamStats[k]);
 
-      $("eventTitle").textContent = eventByCode.name;
+      try {
+        const { eventByCode } = await fetchGraphQL(MATCH_Q, { code });
+        if (!eventByCode) throw new Error("Invalid event code");
 
-      const results = {};
-      let topScore = 0, topTeams = [];
-      let matchSum = 0, matchCount = 0;
+        $("eventTitle").textContent = eventByCode.name;
 
-      for (const m of eventByCode.matches) {
-        const matchNum = m.matchNum || m.id;
-        const red = m.teams.filter(t => t.alliance === "Red");
-        const blue = m.teams.filter(t => t.alliance === "Blue");
+        let topScore = 0, topTeams = [];
+        let matchSum = 0, matchCount = 0;
 
-        const redStats = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
-        const blueStats = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
+        for (const m of eventByCode.matches) {
+          const matchNum = m.matchNum ?? m.id;
+          const red = m.teams.filter(t => t.alliance === "Red");
+          const blue = m.teams.filter(t => t.alliance === "Blue");
 
-        const redTotal = Math.round(redStats.reduce((a, b) => a + b.total, 0));
-        const blueTotal = Math.round(blueStats.reduce((a, b) => a + b.total, 0));
+          // Get stats for each team asynchronously in parallel
+          const redStats = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
+          const blueStats = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
 
-        const redSample = pickRandomTeam(red)?.teamNumber;
-        const blueSpecimen = pickRandomTeam(blue)?.teamNumber;
+          // Calculate totals including sample/specimen/dc points
+          const redTotal = Math.round(redStats.reduce((a, b) => a + b.total, 0));
+          const blueTotal = Math.round(blueStats.reduce((a, b) => a + b.total, 0));
 
-        const winner = redTotal > blueTotal ? "Red" : blueTotal > redTotal ? "Blue" : "Tie";
+          // Pick sample & specimen randomly
+          const redSample = pickRandomTeam(red)?.teamNumber;
+          const blueSpecimen = pickRandomTeam(blue)?.teamNumber;
 
-        for (const team of red.concat(blue)) {
-          const num = team.teamNumber;
-          if (!results[num]) results[num] = { wins: 0, losses: 0, ties: 0, high: 0 };
-          const r = results[num];
-          const score = team.alliance === "Red" ? redTotal : blueTotal;
-          if (score > r.high) r.high = score;
-          if (winner === "Tie") r.ties++;
-          else if (team.alliance === winner) r.wins++;
-          else r.losses++;
+          const winner = redTotal > blueTotal ? "Red" : blueTotal > redTotal ? "Blue" : "Tie";
+
+          // Update results for teams
+          for (const team of red.concat(blue)) {
+            const num = team.teamNumber;
+            if (!results[num]) results[num] = { wins: 0, losses: 0, ties: 0, high: 0 };
+            const r = results[num];
+            const score = team.alliance === "Red" ? redTotal : blueTotal;
+            if (score > r.high) r.high = score;
+            if (winner === "Tie") r.ties++;
+            else if (team.alliance === winner) r.wins++;
+            else r.losses++;
+          }
+
+          // Build table row and append immediately for live updates
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
+            <td>${formatMatch(matchNum)}</td>
+            <td class="${highlightClass(red[0]?.teamNumber, 'red', highlight, redSample, blueSpecimen)}">${red[0]?.teamNumber || ''}</td>
+            <td class="${highlightClass(red[1]?.teamNumber, 'red', highlight, redSample, blueSpecimen)}">${red[1]?.teamNumber || ''}</td>
+            <td class="red-team">${redTotal}</td>
+            <td style="color:${winner === "Red" ? "var(--accent-red)" : winner === "Blue" ? "var(--accent-blue)" : "var(--accent-purple)"}">${winner}</td>
+            <td class="blue-team">${blueTotal}</td>
+            <td class="${highlightClass(blue[0]?.teamNumber, 'blue', highlight, redSample, blueSpecimen)}">${blue[0]?.teamNumber || ''}</td>
+            <td class="${highlightClass(blue[1]?.teamNumber, 'blue', highlight, redSample, blueSpecimen)}">${blue[1]?.teamNumber || ''}</td>
+          `;
+
+          tbody.appendChild(row);
+
+          if (Math.max(redTotal, blueTotal) > topScore) {
+            topScore = Math.max(redTotal, blueTotal);
+            topTeams = redTotal > blueTotal ? red : blue;
+          }
+
+          matchSum += (redTotal + blueTotal) / 2;
+          matchCount++;
+
+          // Give UI time to update each iteration (optional)
+          await new Promise(r => setTimeout(r, 100));
         }
 
-        const row = document.createElement("tr");
+        ranked = Object.entries(results).map(([team, r]) => {
+          const games = r.wins + r.losses + r.ties;
+          const rp = (2 * r.wins + r.ties) / (games || 1);
+          return { team: +team, ...r, rp: rp.toFixed(2) };
+        }).sort((a, b) => b.rp - a.rp || b.high - a.high);
 
-        const highlightCell = (num, color) => {
-          let cls = `${color}-team`;
-          if (num === highlight) cls = `highlighted ${color}-team`;
-          if (num === redSample) cls += " sample-icon";
-          if (num === blueSpecimen) cls += " specimen-icon";
-          return `<td class="${cls}">${num}</td>`;
-        };
+        const top = ranked[0];
+        const avgScore = (matchSum / matchCount).toFixed(2);
 
-        row.innerHTML = `
-          <td>${formatMatch(matchNum)}</td>
-          ${highlightCell(red[0]?.teamNumber, "red")}
-          ${highlightCell(red[1]?.teamNumber, "red")}
-          <td class="red-team">${redTotal}</td>
-          <td style="color:${winner === "Red" ? "var(--accent-red)" : winner === "Blue" ? "var(--accent-blue)" : "var(--accent-purple)"}">${winner}</td>
-          <td class="blue-team">${blueTotal}</td>
-          ${highlightCell(blue[0]?.teamNumber, "blue")}
-          ${highlightCell(blue[1]?.teamNumber, "blue")}
-        `;
-        tbody.appendChild(row);
+        summary.innerHTML += `<div class="summary-box">Predicted High Score: ${topScore} (${topTeams.map(t => t.teamNumber).join(" & ")})</div>`;
+        summary.innerHTML += `<div class="summary-box">Predicted Average Match Score: ${avgScore}</div>`;
+        summary.innerHTML += `<div class="summary-box">Predicted 1st Place: ${top.team} (RP: ${top.rp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.high})</div>`;
 
-        if (Math.max(redTotal, blueTotal) > topScore) {
-          topScore = Math.max(redTotal, blueTotal);
-          topTeams = redTotal > blueTotal ? red : blue;
+        if (highlight && results[highlight]) {
+          const place = ranked.findIndex(r => r.team === highlight) + 1;
+          const r = results[highlight];
+          const rp = ((2 * r.wins + r.ties) / (r.wins + r.losses + r.ties)).toFixed(2);
+          const suffix = ["th","st","nd","rd"][(place%100>3 && place%100<21)?0:(place%10)] || "th";
+          summary.innerHTML += `<div class="summary-box">Predicted ${place}${suffix} Place: ${highlight} (RP: ${rp}, W-L-T: ${r.wins}-${r.losses}-${r.ties}, High Score: ${r.high})</div>`;
         }
 
-        matchSum += (redTotal + blueTotal) / 2;
-        matchCount++;
+        $("loading").textContent = "";
+      } catch(e) {
+        $("loading").textContent = "Error: " + e.message;
+        $("eventTitle").textContent = "Enter a valid FTCScout event code to begin.";
+        tbody.innerHTML = "";
+        $("summary-container").innerHTML = "";
       }
-
-      const ranked = Object.entries(results).map(([team, r]) => {
-        const games = r.wins + r.losses + r.ties;
-        const rp = (2 * r.wins + r.ties) / (games || 1);
-        return { team: +team, ...r, rp: rp.toFixed(2) };
-      }).sort((a, b) => b.rp - a.rp || b.high - a.high);
-
-      const top = ranked[0];
-      const avgScore = (matchSum / matchCount).toFixed(2);
-
-      const summary = $("summary-container");
-      summary.innerHTML += `<div class="summary-box">Predicted High Score: ${topScore} (${topTeams.map(t => t.teamNumber).join(" & ")})</div>`;
-      summary.innerHTML += `<div class="summary-box">Predicted Average Match Score: ${avgScore}</div>`;
-      summary.innerHTML += `<div class="summary-box">Predicted 1st Place: ${top.team} (RP: ${top.rp}, W-L-T: ${top.wins}-${top.losses}-${top.ties}, High Score: ${top.high})</div>`;
-
-      if (highlight && results[highlight]) {
-        const place = ranked.findIndex(r => r.team === highlight) + 1;
-        const r = results[highlight];
-        const rp = ((2 * r.wins + r.ties) / (r.wins + r.losses + r.ties)).toFixed(2);
-        summary.innerHTML += `<div class="summary-box">Predicted ${place}${["st","nd","rd"][((place+90)%100-10)%10-1]||"th"} Place: ${highlight} (RP: ${rp}, W-L-T: ${r.wins}-${r.losses}-${r.ties}, High Score: ${r.high})</div>`;
-      }
-
-      $("loading").textContent = "";
     }
+
+    $("loadBtn").addEventListener("click", loadData);
   </script>
 </body>
 </html>
