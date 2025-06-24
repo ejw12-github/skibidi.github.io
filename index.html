@@ -5,67 +5,28 @@
   <title>FTC Match Predictions (2024)</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #111;
-      color: #eee;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h1 {
-      margin-bottom: 10px;
-    }
-    input, button {
-      padding: 6px 10px;
-      margin: 5px;
-      font-size: 14px;
-      border-radius: 5px;
-      border: 1px solid #444;
-      background: #222;
-      color: #fff;
-    }
-    button {
-      background: #3a6ef0;
-      cursor: pointer;
-    }
-    table {
-      width: 100%;
-      max-width: 1400px;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 8px;
-      text-align: center;
-      border: 1px solid #333;
-    }
-    th {
-      background: #222;
-    }
-    .red { color: #f66; }
-    .blue { color: #6af; }
-    img.icon {
-      height: 16px;
-      vertical-align: middle;
-      margin-left: 4px;
-    }
-    .summary {
-      margin-top: 20px;
-      font-size: 14px;
-      color: #ccc;
-    }
+    body { font-family: 'Inter', sans-serif; background: #111; color: #eee; padding: 20px; text-align: center; }
+    input, button { padding: 8px 12px; margin: 5px; font-size: 14px; border-radius: 5px; background: #222; color: #fff; border: 1px solid #444; }
+    button { background: #3a6ef0; cursor: pointer; }
+    table { width: 100%; max-width: 1000px; border-collapse: collapse; margin: 20px auto; }
+    th, td { border: 1px solid #333; padding: 8px; text-align: center; }
+    th { background: #222; }
+    .red { color: #f55; }
+    .blue { color: #5af; }
+    .highlighted { font-weight: bold; }
+    img.icon { width: 16px; height: 16px; vertical-align: middle; }
+    #loading { margin-top: 10px; font-size: 14px; color: #aaa; }
+    #summary { margin-top: 20px; font-size: 16px; }
   </style>
 </head>
 <body>
   <h1>FTC Match Predictions (2024)</h1>
   <div>
     <input id="eventCode" placeholder="Event Code (e.g. NJ2024)" />
-    <input id="highlightTeam" placeholder="Highlight Team #" type="number" />
-    <button onclick="loadMatches()">Load</button>
+    <input id="highlightTeam" type="number" placeholder="Highlight Team #" />
+    <button id="loadBtn">Load Matches</button>
   </div>
-  <div id="status"></div>
+  <div id="loading"></div>
   <table>
     <thead>
       <tr>
@@ -77,133 +38,123 @@
     </thead>
     <tbody id="matches"></tbody>
   </table>
-  <div class="summary" id="summary"></div>
+  <div id="summary"></div>
 
   <script>
-    const GQL = async (query, variables) => {
-      const res = await fetch("https://api.ftcscout.org/graphql", {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, variables })
-      });
-      const json = await res.json();
-      if (json.errors) throw new Error(json.errors[0].message);
-      return json.data;
-    };
-
-    const MATCH_QUERY = `query($code: String!) {
-      eventByCode(code: $code, season: 2024) {
-        name
-        matches {
-          matchNum
-          teams {
-            teamNumber
-            alliance
-          }
+    const MATCH_Q = `
+      query($code: String!) {
+        eventByCode(code: $code, season: 2024) {
+          name
+          matches { matchNum teams { teamNumber alliance } }
         }
       }
-    }`;
-
-    const TEAM_QUERY = `query($team: Int!) {
-      teamByNumber(number: $team) {
-        events(season: 2024) {
-          event { end }
-          stats {
-            ... on TeamEventStats2024 {
-              opr {
-                totalPointsNp
-                autoPoints
-                autoSpecimenPoints
-                autoSamplePoints
-                dcPoints
-                dcSpecimenPoints
-                dcSamplePoints
-                dcParkPoints
+    `;
+    const TEAM_Q = `
+      query($team: Int!) {
+        teamByNumber(number: $team) {
+          events(season: 2024) {
+            event { end }
+            stats {
+              ... on TeamEventStats2024 {
+                opr { totalPointsNp autoPoints autoSamplePoints autoSpecimenPoints dcPoints dcSamplePoints dcSpecimenPoints dcParkPoints }
               }
             }
           }
         }
       }
-    }`;
+    `;
 
-    const teamCache = {};
+    const cache = {}, results = [];
+    document.getElementById('loadBtn').addEventListener('click', loadMatches);
 
-    async function getTeamStats(teamNumber) {
-      if (teamCache[teamNumber]) return teamCache[teamNumber];
-      const data = await GQL(TEAM_QUERY, { team: teamNumber });
-      const events = data.teamByNumber?.events || [];
-      const latest = events.sort((a, b) => new Date(b.event.end) - new Date(a.event.end))[0];
-      const opr = latest?.stats?.opr || {};
-      const stat = {
-        total: Object.values(opr).reduce((sum, val) => sum + (val || 0), 0),
-        isSample: (opr.autoSamplePoints || 0) + (opr.dcSamplePoints || 0) > 0,
-        isSpecimen: (opr.autoSpecimenPoints || 0) + (opr.dcSpecimenPoints || 0) > 0,
-      };
-      teamCache[teamNumber] = stat;
-      return stat;
+    async function gql(q, vars) {
+      const r = await fetch('https://api.ftcscout.org/graphql', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, variables: vars})
+      });
+      const j = await r.json();
+      if (j.errors) throw new Error(j.errors[0].message);
+      return j.data;
     }
 
-    function teamDisplay(team, stat, color, highlight) {
-      const cls = color + (highlight === team ? ' bold' : '');
-      const icons = [];
-      if (stat.isSample) icons.push('<img src="images/sample.png" class="icon" title="Sample">');
-      if (stat.isSpecimen) icons.push('<img src="images/specimen.png" class="icon" title="Specimen">');
-      return `<td class="${cls}">${team}${icons.join('')}</td>`;
+    async function getStats(team){
+      if (cache[team]) return cache[team];
+      const d = await gql(TEAM_Q, {team});
+      const ev = d.teamByNumber.events || [];
+      const latest = ev.sort((a,b)=>new Date(b.event.end) - new Date(a.event.end))[0] || {};
+      const o = latest.stats?.opr || {};
+      const pts = (o.totalPointsNp||0)+(o.autoPoints||0)+(o.autoSamplePoints||0)+(o.autoSpecimenPoints||0)+
+                  (o.dcPoints||0)+(o.dcSamplePoints||0)+(o.dcSpecimenPoints||0)+(o.dcParkPoints||0);
+      const samplePts = (o.autoSamplePoints||0)+(o.dcSamplePoints||0);
+      const specimenPts = (o.autoSpecimenPoints||0)+(o.dcSpecimenPoints||0);
+      cache[team] = { pts, icon: samplePts >= specimenPts ? 'sample' : 'specimen' };
+      return cache[team];
     }
 
-    async function loadMatches() {
+    async function loadMatches(){
       const code = document.getElementById('eventCode').value.trim();
       const highlight = parseInt(document.getElementById('highlightTeam').value);
       const tbody = document.getElementById('matches');
-      const status = document.getElementById('status');
-      const summary = document.getElementById('summary');
-      tbody.innerHTML = summary.innerHTML = status.textContent = '';
+      tbody.innerHTML = '';
+      document.getElementById('summary').textContent = '';
+      document.getElementById('loading').textContent = 'Loading…';
+
+      Object.keys(cache).forEach(k=>delete cache[k]);
+      results.length = 0;
 
       try {
-        status.textContent = 'Loading...';
-        const data = await GQL(MATCH_QUERY, { code });
-        const matches = data.eventByCode?.matches || [];
+        const ed = await gql(MATCH_Q, {code});
+        if (!ed.eventByCode) throw new Error('Invalid event code');
+        let sum = 0, count = 0, top = 0;
 
-        let scores = [];
+        for (const m of ed.eventByCode.matches){
+          const red = m.teams.filter(t=>t.alliance==='Red').map(t=>t.teamNumber);
+          const blue = m.teams.filter(t=>t.alliance==='Blue').map(t=>t.teamNumber);
 
-        for (const match of matches) {
-          const num = match.matchNum;
-          const red = match.teams.filter(t => t.alliance === "Red").map(t => t.teamNumber);
-          const blue = match.teams.filter(t => t.alliance === "Blue").map(t => t.teamNumber);
+          const rs = await Promise.all(red.map(getStats));
+          const bs = await Promise.all(blue.map(getStats));
 
-          const redStats = await Promise.all(red.map(getTeamStats));
-          const blueStats = await Promise.all(blue.map(getTeamStats));
+          const rTot = rs.reduce((a,b)=>a+b.pts,0);
+          const bTot = bs.reduce((a,b)=>a+b.pts,0);
 
-          const redTotal = Math.round(redStats.reduce((a, s) => a + (s.total || 0), 0));
-          const blueTotal = Math.round(blueStats.reduce((a, s) => a + (s.total || 0), 0));
+          sum += (rTot + bTot)/2;
+          count++;
+          if (rTot > top) top = rTot;
+          if (bTot > top) top = bTot;
 
-          const winner = redTotal > blueTotal ? 'Red' : blueTotal > redTotal ? 'Blue' : 'Tie';
-
-          scores.push((redTotal + blueTotal) / 2);
-
-          tbody.innerHTML += `
-            <tr>
-              <td>Q-${num}</td>
-              ${teamDisplay(red[0], redStats[0], 'red', highlight)}
-              ${teamDisplay(red[1], redStats[1], 'red', highlight)}
-              <td class="red">${redTotal}</td>
-              <td style="color:${winner === 'Red' ? '#f66' : winner === 'Blue' ? '#6af' : '#ccc'}">${winner}</td>
-              <td class="blue">${blueTotal}</td>
-              ${teamDisplay(blue[0], blueStats[0], 'blue', highlight)}
-              ${teamDisplay(blue[1], blueStats[1], 'blue', highlight)}
-            </tr>
-          `;
-
-          await new Promise(r => setTimeout(r, 100));
+          results.push({red, blue, rTot, bTot, winner: rTot>bTot?'Red':bTot>rTot?'Blue':'Tie'});
+          renderRow(m.matchNum, red, blue, rs, bs, rTot, bTot, highlight);
+          await new Promise(r=>setTimeout(r, 50));
         }
 
-        const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : '0';
-        const max = Math.max(...scores).toFixed(0);
-        summary.innerHTML = `Predicted Avg Match Score: ${avg} | Predicted High Score: ${max}`;
-        status.textContent = '';
-      } catch (e) {
-        status.textContent = 'Error: ' + e.message;
+        const avg = count ? (sum/count).toFixed(2) : '0.00';
+        document.getElementById('summary').textContent = 
+          `Predicted High Score: ${top} — Avg Match Score: ${avg}`;
+      } catch(e) {
+        document.getElementById('loading').textContent = 'Error: ' + e.message;
+        return;
       }
+      document.getElementById('loading').textContent = '';
+    }
+
+    function renderRow(num, red, blue, rs, bs, rTot, bTot, highlight){
+      const tr = document.createElement('tr');
+      const mk = num > 20000 ? `M-${num-20000}` : `Q-${num}`;
+      const makeCell = (team, stats, color) => {
+        const cls = (team === highlight ? 'highlighted ' : '') + color;
+        return `<td class="${cls}">
+          ${team} <img src="images/${stats.icon}.png" class="icon">
+        </td>`;
+      };
+      tr.innerHTML = `
+        <td>${mk}</td>
+        ${makeCell(red[0], rs[0], 'red')} ${makeCell(red[1], rs[1], 'red')}
+        <td class="red">${rTot}</td>
+        <td style="color:${rTot>bTot?'#f55':bTot>rTot?'#5af':'#aaa'}">${rTot>bTot?'Red':bTot>rTot?'Blue':'Tie'}</td>
+        <td class="blue">${bTot}</td>
+        ${makeCell(blue[0], bs[0], 'blue')} ${makeCell(blue[1], bs[1], 'blue')}
+      `;
+      document.getElementById('matches').appendChild(tr);
     }
   </script>
 </body>
