@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>FTC Match Predictions</title>
+  <title>FTC Match Predictions (2024 Detailed Stats)</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #121212;
-      --fg: #ffffff;
+      --fg: #fff;
       --accent-red: #ff4d4d;
       --accent-blue: #4d94ff;
       --accent-yellow: #ffd700;
@@ -15,31 +15,27 @@
       --card-bg: #1e1e1e;
       --border: #333;
     }
-
     body {
       font-family: 'Inter', sans-serif;
-      background-color: var(--bg);
+      background: var(--bg);
       color: var(--fg);
       padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-
     h1 {
-      font-size: 28px;
       font-weight: 700;
       margin-bottom: 5px;
+      font-size: 28px;
       text-align: center;
     }
-
     .info, #eventTitle {
       font-size: 14px;
       color: #aaa;
       margin-bottom: 20px;
       text-align: center;
     }
-
     input, button {
       padding: 8px 12px;
       margin: 5px;
@@ -49,18 +45,14 @@
       background-color: #222;
       color: var(--fg);
     }
-
     button {
       background-color: var(--accent-blue);
-      color: white;
       border: none;
       cursor: pointer;
     }
-
     button:hover {
       background-color: #1c6ed2;
     }
-
     table {
       width: 98%;
       max-width: 1400px;
@@ -69,49 +61,40 @@
       background-color: var(--card-bg);
       border: 1px solid var(--border);
     }
-
     th, td {
       padding: 10px;
       text-align: center;
       border: 1px solid var(--border);
       font-size: 13px;
     }
-
     th {
       background-color: #2c2c2c;
       font-weight: 600;
     }
-
     .red-team {
       color: var(--accent-red);
     }
-
     .blue-team {
       color: var(--accent-blue);
     }
-
     .highlighted.red-team {
       background-color: var(--accent-red);
-      color: #ffffff;
+      color: #fff;
       font-weight: bold;
     }
-
     .highlighted.blue-team {
       background-color: var(--accent-blue);
-      color: #ffffff;
+      color: #fff;
       font-weight: bold;
     }
-
     .sample-icon::after {
       content: " 🧪";
       color: var(--accent-yellow);
     }
-
     .specimen-icon::after {
       content: " 🧬";
       color: var(--accent-purple);
     }
-
     .summary-box {
       background-color: #2c2c2c;
       border: 1px solid var(--border);
@@ -123,14 +106,12 @@
       max-width: 800px;
       text-align: center;
     }
-
     #footer {
       margin-top: 40px;
       font-size: 12px;
       color: #777;
       text-align: center;
     }
-
     #loading {
       font-size: 14px;
       margin-top: 10px;
@@ -139,19 +120,15 @@
   </style>
 </head>
 <body>
-
-  <h1>FTC Match Predictions</h1>
+  <h1>FTC Match Predictions (2024 Detailed Stats)</h1>
   <div id="eventTitle" class="info">Enter a valid FTCScout event code to begin.</div>
-
   <div>
-    <input type="text" id="eventCode" placeholder="Enter event code" />
+    <input type="text" id="eventCode" placeholder="Enter event code (e.g. NJ2024)" />
     <input type="number" id="highlightTeam" placeholder="Highlight team #" />
     <button id="loadBtn">Load Matches</button>
   </div>
-
   <div id="summary-container"></div>
   <div id="loading"></div>
-
   <table id="matches">
     <thead>
       <tr>
@@ -167,34 +144,52 @@
     </thead>
     <tbody></tbody>
   </table>
-
   <div id="footer">Powered by FTCScout API</div>
 
   <script>
     const MATCH_Q = `
-      query($code:String!){
-        eventByCode(code:$code,season:2024){
+      query($code:String!) {
+        eventByCode(code:$code,season:2024) {
           name
           matches {
             id
             matchNum
-            teams { teamNumber station alliance }
+            teams {
+              teamNumber
+              station
+              alliance
+            }
           }
         }
-      }`;
+      }
+    `;
 
     const TEAM_Q = `
-      query($team:Int!){
-        teamByNumber(number:$team){
-          name
-          statistics(season:2024){
-            opr
-            autoSamplePoints
-            autoSpecimenPoints
-            dc
+      query($team:Int!) {
+        teamByNumber(number:$team) {
+          events(season:2024) {
+            event {
+              end
+              started
+            }
+            stats {
+              ... on TeamEventStats2024 {
+                opr {
+                  totalPointsNp
+                  autoPoints
+                  autoSpecimenPoints
+                  autoSamplePoints
+                  dcPoints
+                  dcSpecimenPoints
+                  dcSamplePoints
+                  dcParkPoints
+                }
+              }
+            }
           }
         }
-      }`;
+      }
+    `;
 
     const $ = id => document.getElementById(id);
     const teamStats = {};
@@ -205,27 +200,69 @@
       const res = await fetch("https://api.ftcscout.org/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, variables })
+        body: JSON.stringify({ query, variables }),
       });
       const json = await res.json();
       if (json.errors) throw new Error(json.errors[0].message);
       return json.data;
     }
 
+    // For each team: get latest event stats (by event end date)
     async function getTeamData(team) {
       if (teamStats[team]) return teamStats[team];
       const { teamByNumber } = await fetchGraphQL(TEAM_Q, { team });
-      const stats = teamByNumber?.statistics ?? {};
-      const total = (stats.opr ?? 0) + (stats.dc ?? 0) + (stats.autoSamplePoints ?? 0) + (stats.autoSpecimenPoints ?? 0);
-      const entry = {
-        name: teamByNumber?.name || "Unknown",
-        total: total,
-        dc: stats.dc ?? 0,
-        sample: stats.autoSamplePoints ?? 0,
-        specimen: stats.autoSpecimenPoints ?? 0
+      if (!teamByNumber || !teamByNumber.events.length) {
+        // No stats fallback
+        const empty = {
+          name: `#${team}`,
+          total: 0,
+          oprPoints: 0,
+          autoPoints: 0,
+          autoSamplePoints: 0,
+          autoSpecimenPoints: 0,
+          dcPoints: 0,
+          dcSamplePoints: 0,
+          dcSpecimenPoints: 0,
+          dcParkPoints: 0
+        };
+        teamStats[team] = empty;
+        return empty;
+      }
+      // Pick latest event (by end date)
+      const latestEvent = teamByNumber.events.reduce((latest, ev) => {
+        if (!latest) return ev;
+        const latestEnd = new Date(latest.event.end || 0);
+        const evEnd = new Date(ev.event.end || 0);
+        return evEnd > latestEnd ? ev : latest;
+      }, null);
+
+      const opr = latestEvent.stats?.opr || {};
+      const totalPointsNp = opr.totalPointsNp || 0;
+      const autoPoints = opr.autoPoints || 0;
+      const autoSamplePoints = opr.autoSamplePoints || 0;
+      const autoSpecimenPoints = opr.autoSpecimenPoints || 0;
+      const dcPoints = opr.dcPoints || 0;
+      const dcSamplePoints = opr.dcSamplePoints || 0;
+      const dcSpecimenPoints = opr.dcSpecimenPoints || 0;
+      const dcParkPoints = opr.dcParkPoints || 0;
+
+      // Aggregate total points from relevant fields
+      const total = totalPointsNp + autoPoints + autoSamplePoints + autoSpecimenPoints + dcPoints + dcSamplePoints + dcSpecimenPoints + dcParkPoints;
+
+      const result = {
+        name: teamByNumber.name || `#${team}`,
+        total,
+        oprPoints: totalPointsNp,
+        autoPoints,
+        autoSamplePoints,
+        autoSpecimenPoints,
+        dcPoints,
+        dcSamplePoints,
+        dcSpecimenPoints,
+        dcParkPoints
       };
-      teamStats[team] = entry;
-      return entry;
+      teamStats[team] = result;
+      return result;
     }
 
     function formatMatch(matchNum) {
@@ -233,6 +270,7 @@
     }
 
     function pickRandomTeam(arr) {
+      if (!arr.length) return null;
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
@@ -270,21 +308,21 @@
           const red = m.teams.filter(t => t.alliance === "Red");
           const blue = m.teams.filter(t => t.alliance === "Blue");
 
-          // Get stats for each team asynchronously in parallel
+          // Fetch team stats in parallel
           const redStats = await Promise.all(red.map(t => getTeamData(t.teamNumber)));
           const blueStats = await Promise.all(blue.map(t => getTeamData(t.teamNumber)));
 
-          // Calculate totals including sample/specimen/dc points
+          // Sum totals
           const redTotal = Math.round(redStats.reduce((a, b) => a + b.total, 0));
           const blueTotal = Math.round(blueStats.reduce((a, b) => a + b.total, 0));
 
-          // Pick sample & specimen randomly
+          // Pick sample & specimen teams randomly per alliance
           const redSample = pickRandomTeam(red)?.teamNumber;
           const blueSpecimen = pickRandomTeam(blue)?.teamNumber;
 
           const winner = redTotal > blueTotal ? "Red" : blueTotal > redTotal ? "Blue" : "Tie";
 
-          // Update results for teams
+          // Update results
           for (const team of red.concat(blue)) {
             const num = team.teamNumber;
             if (!results[num]) results[num] = { wins: 0, losses: 0, ties: 0, high: 0 };
@@ -296,9 +334,8 @@
             else r.losses++;
           }
 
-          // Build table row and append immediately for live updates
+          // Append row progressively for live update
           const row = document.createElement("tr");
-
           row.innerHTML = `
             <td>${formatMatch(matchNum)}</td>
             <td class="${highlightClass(red[0]?.teamNumber, 'red', highlight, redSample, blueSpecimen)}">${red[0]?.teamNumber || ''}</td>
@@ -309,7 +346,6 @@
             <td class="${highlightClass(blue[0]?.teamNumber, 'blue', highlight, redSample, blueSpecimen)}">${blue[0]?.teamNumber || ''}</td>
             <td class="${highlightClass(blue[1]?.teamNumber, 'blue', highlight, redSample, blueSpecimen)}">${blue[1]?.teamNumber || ''}</td>
           `;
-
           tbody.appendChild(row);
 
           if (Math.max(redTotal, blueTotal) > topScore) {
@@ -320,7 +356,7 @@
           matchSum += (redTotal + blueTotal) / 2;
           matchCount++;
 
-          // Give UI time to update each iteration (optional)
+          // Small delay so UI updates progressively (optional)
           await new Promise(r => setTimeout(r, 100));
         }
 
@@ -346,7 +382,7 @@
         }
 
         $("loading").textContent = "";
-      } catch(e) {
+      } catch (e) {
         $("loading").textContent = "Error: " + e.message;
         $("eventTitle").textContent = "Enter a valid FTCScout event code to begin.";
         tbody.innerHTML = "";
