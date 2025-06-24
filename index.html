@@ -141,10 +141,6 @@
   <div id="footer">Powered by FTCScout API</div>
 
 <script>
-  // Your predictor scoring logic integrated here
-
-  // Classes from your predictor:
-
   class Event {
     constructor(ende, startede, temp) {
       this.date = new Date(ende);
@@ -174,33 +170,30 @@
     }
   }
 
+  // Updated Alliance sums all parts from both teams, no max/min
   class Alliance {
     constructor(t1, t2) {
-      if (t1.aSp > t2.aSp) {
-        this.aSp = t1.aSp;
-        this.aSa = t2.aSa;
-      } else {
-        this.aSp = t2.aSp;
-        this.aSa = t1.aSa;
-      }
-      this.a = this.aSp + this.aSa;
+      // Sum auto specimen and auto sample points fully (instead of max+max)
+      this.aSp = (t1.aSp ?? 0) + (t2.aSp ?? 0);
+      this.aSa = (t1.aSa ?? 0) + (t2.aSa ?? 0);
+      this.a = (t1.a ?? 0) + (t2.a ?? 0);
 
-      if (t1.dSp > t2.dSp) {
-        this.dSp = t1.dSp;
-        this.dSa = t2.dSa;
-      } else {
-        this.dSp = t2.dSp;
-        this.dSa = t1.dSa;
-      }
-      this.d = this.dSp + this.dSa;
+      // Sum teleop specimen and sample points fully
+      this.dSp = (t1.dSp ?? 0) + (t2.dSp ?? 0);
+      this.dSa = (t1.dSa ?? 0) + (t2.dSa ?? 0);
+      this.d = (t1.d ?? 0) + (t2.d ?? 0);
 
-      this.e = t1.e + t2.e;
+      // Sum endgame points fully
+      this.e = (t1.e ?? 0) + (t2.e ?? 0);
+
+      // Alliance total is sum of all components (auto + teleop + endgame)
       this.tot = this.a + this.d + this.e;
-      this.uTot = t1.tot + t2.tot;
+
+      // Sum of team totals too (for reference)
+      this.uTot = (t1.tot ?? 0) + (t2.tot ?? 0);
     }
   }
 
-  // Fetch team event data from GraphQL API and get best recent event for scoring:
   async function fetchTeam(teamNumber) {
     if (!teamNumber) return null;
     try {
@@ -243,7 +236,6 @@
 
       const events = data.data.teamByNumber.events;
 
-      // Find the most recent started event with valid stats
       let bestEvent = null;
       for (const ev of events) {
         if (!ev.event?.started || !ev.event.end) continue;
@@ -276,7 +268,6 @@
     }
   }
 
-  // Format match numbers (keep your existing style)
   function formatMatchNumber(num) {
     if (num > 20000) {
       const playoff = num - 20000;
@@ -287,13 +278,11 @@
     return num ? `Q-${num}` : "?";
   }
 
-  // Cache to avoid refetching team data multiple times
   const teamCache = {};
 
   async function getTeamData(teamNumber) {
     if (teamCache[teamNumber]) return teamCache[teamNumber];
     const data = await fetchTeam(teamNumber);
-    // If no data, return dummy zeros
     if (!data) {
       const dummy = new Team(teamNumber, {
         tot: 0, a: 0, aSp: 0, aSa: 0, d: 0, dSp: 0, dSa: 0, e: 0
@@ -336,23 +325,18 @@
         const matchNumber = match.matchNumber || match.id || "?";
         const teams = match.teams || [];
 
-        // Get alliance teams
         const redTeams = teams.filter(t => t.alliance === "Red");
         const blueTeams = teams.filter(t => t.alliance === "Blue");
 
-        // Fetch team detailed data (your detailed OPR etc)
         const redData = await Promise.all(redTeams.map(t => getTeamData(t.teamNumber)));
         const blueData = await Promise.all(blueTeams.map(t => getTeamData(t.teamNumber)));
 
-        // Create alliances with your logic
         const redAlliance = new Alliance(redData[0], redData[1]);
         const blueAlliance = new Alliance(blueData[0], blueData[1]);
 
-        // Predicted scores from your model:
         const redScore = Math.round(redAlliance.tot);
         const blueScore = Math.round(blueAlliance.tot);
 
-        // Determine winner for display
         const winner = redScore > blueScore ? "Red" : blueScore > redScore ? "Blue" : "Tie";
 
         const row = document.createElement("tr");
